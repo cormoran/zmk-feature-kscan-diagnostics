@@ -350,8 +350,30 @@ pre-commit run --all-files` + run the npm checks directly.
     DiagnosisEngine caller that omits it silently skips GHOST rather than
     erroring — documented as a deliberate "opt-in" design in
     `diagnosis/types.ts`, not a bug.
-- **E — hardware validation** (§8): mock build + direct build on the rig,
-  record actual RPC transcripts into `docs/validation.md`.
+- **E — hardware validation** (§8) — **done**: mock build
+  (`kscan_diagnostics_board_hw_mock`, new snippet `diag-hw-mock`) and the
+  existing direct-kscan build (`kscan_diagnostics_board_with_rpc`) flashed to
+  the rig's XIAO over SWD; full RPC chain (Info/Layout/Device/GpioPins/
+  PositionMap/GetStats/ResetStats) exercised over real USB via
+  `tools/zmk-studio-rpc --transport pyusb`; transcripts in
+  `docs/validation.md`. Deviations found and fixed along the way (both in
+  `docs/validation.md` in detail):
+  - **Bug**: `proto/cormoran/kscan-diagnostics/` (hyphen) broke
+    `tools/zmk-studio-rpc custom-call`'s proto loader (tries to import an
+    invalid Python module path). Renamed to
+    `proto/cormoran/kscan_diagnostics/` (matches every other module's
+    single-word/underscore convention) and updated the two firmware
+    `#include`s + the generated web proto's import sites.
+  - **Test-script pitfall, not a firmware bug**: `zmk,kscan-mock`'s `events`
+    DT array is one-event-behind (each `events[i]`'s delay controls the wait
+    before event `i+1`, not event `i`; `events[0]`'s delay is consumed
+    twice; the last event's delay is never consumed) -- discovered when an
+    initial hardware event script's `GetStats` results looked swapped.
+    `tests/test.dtsi`'s native_sim fixture has the same shift but its
+    tolerant assertion ranges absorb it either way. Fixed the hardware
+    script (`diag-hw-mock.overlay`) accordingly and added
+    `src/test/kscan_mock_timing_test.c` (`tests/mock-timing/`) to pin the
+    real model down as a regression test.
 - **F — docs + PR**: README user guide (how to add the module + west.yml
   example, how to run a diagnosis session), then PR to origin.
 
