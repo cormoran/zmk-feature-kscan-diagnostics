@@ -141,8 +141,7 @@ static int test_rpc_get_info(void) {
         info->max_positions != CONFIG_ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS) {
         LOG_ERR("unexpected Info: layout_count=%u device_count=%u stats_enabled=%d "
                 "max_positions=%u",
-                info->layout_count, info->device_count, info->stats_enabled,
-                info->max_positions);
+                info->layout_count, info->device_count, info->stats_enabled, info->max_positions);
         return -EINVAL;
     }
 
@@ -166,8 +165,8 @@ static int test_rpc_get_layout(void) {
     }
     const cormoran_kscan_diagnostics_Layout *layout = &resp.response_type.layout;
     if (layout->rows != 2 || layout->columns != 2 || layout->key_count != 4) {
-        LOG_ERR("unexpected Layout: rows=%u columns=%u key_count=%u", layout->rows,
-                layout->columns, layout->key_count);
+        LOG_ERR("unexpected Layout: rows=%u columns=%u key_count=%u", layout->rows, layout->columns,
+                layout->key_count);
         return -EINVAL;
     }
     if (layout->device_indices_count != 1 || layout->device_indices[0].leaf_index != 0 ||

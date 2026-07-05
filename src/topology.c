@@ -32,15 +32,13 @@
 #if CONFIG_ZMK_KSCAN_DEBOUNCE_PRESS_MS >= 0
 #define KSD_DEBOUNCE_PRESS_MS(n) CONFIG_ZMK_KSCAN_DEBOUNCE_PRESS_MS
 #else
-#define KSD_DEBOUNCE_PRESS_MS(n)                                                                   \
-    DT_PROP_OR(n, debounce_period, DT_PROP(n, debounce_press_ms))
+#define KSD_DEBOUNCE_PRESS_MS(n) DT_PROP_OR(n, debounce_period, DT_PROP(n, debounce_press_ms))
 #endif
 
 #if CONFIG_ZMK_KSCAN_DEBOUNCE_RELEASE_MS >= 0
 #define KSD_DEBOUNCE_RELEASE_MS(n) CONFIG_ZMK_KSCAN_DEBOUNCE_RELEASE_MS
 #else
-#define KSD_DEBOUNCE_RELEASE_MS(n)                                                                 \
-    DT_PROP_OR(n, debounce_period, DT_PROP(n, debounce_release_ms))
+#define KSD_DEBOUNCE_RELEASE_MS(n) DT_PROP_OR(n, debounce_period, DT_PROP(n, debounce_release_ms))
 #endif
 
 /*
@@ -78,20 +76,20 @@
         LISTIFY(DT_PROP_LEN(n, col_gpios), KSD_MATRIX_COL_LINE, (, ), n),                          \
     };                                                                                             \
     static const struct ksd_device ksd_matrix_device_##n = {                                       \
-        .dev = DEVICE_DT_GET(n),                                                                  \
-        .node_name = DT_NODE_FULL_NAME(n),                                                        \
-        .type = KSD_DRIVER_MATRIX,                                                                \
-        .rows = DT_PROP_LEN(n, row_gpios),                                                        \
-        .columns = DT_PROP_LEN(n, col_gpios),                                                     \
-        .inputs = KSD_MATRIX_ROW2COL(n) ? DT_PROP_LEN(n, col_gpios) : DT_PROP_LEN(n, row_gpios),  \
-        .debounce_press_ms = KSD_DEBOUNCE_PRESS_MS(n),                                            \
-        .debounce_release_ms = KSD_DEBOUNCE_RELEASE_MS(n),                                        \
-        .debounce_scan_period_ms = DT_PROP(n, debounce_scan_period_ms),                           \
-        .poll_period_ms = DT_PROP(n, poll_period_ms),                                             \
-        .diode_row2col = KSD_MATRIX_ROW2COL(n),                                                   \
-        .toggle_mode = false,                                                                     \
-        .gpio_lines = ksd_matrix_lines_##n,                                                       \
-        .gpio_line_count = ARRAY_SIZE(ksd_matrix_lines_##n),                                      \
+        .dev = DEVICE_DT_GET(n),                                                                   \
+        .node_name = DT_NODE_FULL_NAME(n),                                                         \
+        .type = KSD_DRIVER_MATRIX,                                                                 \
+        .rows = DT_PROP_LEN(n, row_gpios),                                                         \
+        .columns = DT_PROP_LEN(n, col_gpios),                                                      \
+        .inputs = KSD_MATRIX_ROW2COL(n) ? DT_PROP_LEN(n, col_gpios) : DT_PROP_LEN(n, row_gpios),   \
+        .debounce_press_ms = KSD_DEBOUNCE_PRESS_MS(n),                                             \
+        .debounce_release_ms = KSD_DEBOUNCE_RELEASE_MS(n),                                         \
+        .debounce_scan_period_ms = DT_PROP(n, debounce_scan_period_ms),                            \
+        .poll_period_ms = DT_PROP(n, poll_period_ms),                                              \
+        .diode_row2col = KSD_MATRIX_ROW2COL(n),                                                    \
+        .toggle_mode = false,                                                                      \
+        .gpio_lines = ksd_matrix_lines_##n,                                                        \
+        .gpio_line_count = ARRAY_SIZE(ksd_matrix_lines_##n),                                       \
     };
 
 DT_FOREACH_STATUS_OKAY(zmk_kscan_gpio_matrix, KSD_MATRIX_ENTRY)
@@ -124,7 +122,8 @@ static const struct ksd_device *const ksd_matrix_devices[] = {
     KSD_GPIO_LINE_INIT(DT_PHANDLE_BY_IDX(n, input_keys, idx), gpios, 0, KSD_GPIO_KIND_INPUT)
 
 #define KSD_DIRECT_INPUTS_LEN(n)                                                                   \
-    COND_CODE_1(KSD_DIRECT_HAS_GPIOS(n), (DT_PROP_LEN(n, input_gpios)), (DT_PROP_LEN(n, input_keys)))
+    COND_CODE_1(KSD_DIRECT_HAS_GPIOS(n), (DT_PROP_LEN(n, input_gpios)),                            \
+                (DT_PROP_LEN(n, input_keys)))
 
 #define KSD_DIRECT_ENTRY(n)                                                                        \
     static const struct ksd_gpio_line ksd_direct_lines_##n[] = {                                   \
@@ -132,17 +131,17 @@ static const struct ksd_device *const ksd_matrix_devices[] = {
                     (LISTIFY(KSD_DIRECT_INPUTS_LEN(n), KSD_DIRECT_GPIO_LINE, (, ), n)),            \
                     (LISTIFY(KSD_DIRECT_INPUTS_LEN(n), KSD_DIRECT_KEY_LINE, (, ), n)))};           \
     static const struct ksd_device ksd_direct_device_##n = {                                       \
-        .dev = DEVICE_DT_GET(n),                                                                  \
-        .node_name = DT_NODE_FULL_NAME(n),                                                        \
-        .type = KSD_DRIVER_DIRECT,                                                                \
-        .rows = 1,                                                                                \
-        .columns = KSD_DIRECT_INPUTS_LEN(n),                                                      \
-        .inputs = KSD_DIRECT_INPUTS_LEN(n),                                                       \
-        .debounce_press_ms = KSD_DEBOUNCE_PRESS_MS(n),                                            \
-        .debounce_release_ms = KSD_DEBOUNCE_RELEASE_MS(n),                                        \
-        .debounce_scan_period_ms = DT_PROP(n, debounce_scan_period_ms),                           \
-        .poll_period_ms = DT_PROP(n, poll_period_ms),                                             \
-        .diode_row2col = false,                                                                   \
+        .dev = DEVICE_DT_GET(n),                                                                   \
+        .node_name = DT_NODE_FULL_NAME(n),                                                         \
+        .type = KSD_DRIVER_DIRECT,                                                                 \
+        .rows = 1,                                                                                 \
+        .columns = KSD_DIRECT_INPUTS_LEN(n),                                                       \
+        .inputs = KSD_DIRECT_INPUTS_LEN(n),                                                        \
+        .debounce_press_ms = KSD_DEBOUNCE_PRESS_MS(n),                                             \
+        .debounce_release_ms = KSD_DEBOUNCE_RELEASE_MS(n),                                         \
+        .debounce_scan_period_ms = DT_PROP(n, debounce_scan_period_ms),                            \
+        .poll_period_ms = DT_PROP(n, poll_period_ms),                                              \
+        .diode_row2col = false,                                                                    \
         .toggle_mode = DT_PROP(n, toggle_mode),                                                    \
         .gpio_lines = ksd_direct_lines_##n,                                                        \
         .gpio_line_count = ARRAY_SIZE(ksd_direct_lines_##n),                                       \
@@ -168,22 +167,22 @@ static const struct ksd_device *const ksd_direct_devices[] = {
 
 #define KSD_CHARLIE_LINE(idx, n) KSD_GPIO_LINE_INIT(n, gpios, idx, KSD_GPIO_KIND_CHARLIE)
 
-#define KSD_CHARLIE_ENTRY(n)                                                                        \
+#define KSD_CHARLIE_ENTRY(n)                                                                       \
     static const struct ksd_gpio_line ksd_charlie_lines_##n[] = {                                  \
         LISTIFY(DT_PROP_LEN(n, gpios), KSD_CHARLIE_LINE, (, ), n)};                                \
     static const struct ksd_device ksd_charlie_device_##n = {                                      \
-        .dev = DEVICE_DT_GET(n),                                                                  \
-        .node_name = DT_NODE_FULL_NAME(n),                                                        \
-        .type = KSD_DRIVER_CHARLIEPLEX,                                                           \
-        .rows = DT_PROP_LEN(n, gpios),                                                            \
-        .columns = DT_PROP_LEN(n, gpios),                                                         \
-        .inputs = DT_PROP_LEN(n, gpios),                                                          \
-        .debounce_press_ms = KSD_DEBOUNCE_PRESS_MS(n),                                            \
-        .debounce_release_ms = KSD_DEBOUNCE_RELEASE_MS(n),                                        \
-        .debounce_scan_period_ms = DT_PROP(n, debounce_scan_period_ms),                           \
-        .poll_period_ms = DT_PROP_OR(n, poll_period_ms, 1),                                       \
-        .diode_row2col = false,                                                                   \
-        .toggle_mode = false,                                                                     \
+        .dev = DEVICE_DT_GET(n),                                                                   \
+        .node_name = DT_NODE_FULL_NAME(n),                                                         \
+        .type = KSD_DRIVER_CHARLIEPLEX,                                                            \
+        .rows = DT_PROP_LEN(n, gpios),                                                             \
+        .columns = DT_PROP_LEN(n, gpios),                                                          \
+        .inputs = DT_PROP_LEN(n, gpios),                                                           \
+        .debounce_press_ms = KSD_DEBOUNCE_PRESS_MS(n),                                             \
+        .debounce_release_ms = KSD_DEBOUNCE_RELEASE_MS(n),                                         \
+        .debounce_scan_period_ms = DT_PROP(n, debounce_scan_period_ms),                            \
+        .poll_period_ms = DT_PROP_OR(n, poll_period_ms, 1),                                        \
+        .diode_row2col = false,                                                                    \
+        .toggle_mode = false,                                                                      \
         .gpio_lines = ksd_charlie_lines_##n,                                                       \
         .gpio_line_count = ARRAY_SIZE(ksd_charlie_lines_##n),                                      \
     };
@@ -215,24 +214,24 @@ static const struct ksd_device *const ksd_charlie_devices[] = {
 #define KSD_DEMUX_INPUT_LINE(idx, n) KSD_GPIO_LINE_INIT(n, input_gpios, idx, KSD_GPIO_KIND_INPUT)
 #define KSD_DEMUX_OUTPUT_LINE(idx, n) KSD_GPIO_LINE_INIT(n, output_gpios, idx, KSD_GPIO_KIND_OUTPUT)
 
-#define KSD_DEMUX_ENTRY(n)                                                                          \
+#define KSD_DEMUX_ENTRY(n)                                                                         \
     static const struct ksd_gpio_line ksd_demux_lines_##n[] = {                                    \
         LISTIFY(DT_PROP_LEN(n, input_gpios), KSD_DEMUX_INPUT_LINE, (, ), n),                       \
         LISTIFY(DT_PROP_LEN(n, output_gpios), KSD_DEMUX_OUTPUT_LINE, (, ), n),                     \
     };                                                                                             \
     static const struct ksd_device ksd_demux_device_##n = {                                        \
-        .dev = DEVICE_DT_GET(n),                                                                  \
-        .node_name = DT_NODE_FULL_NAME(n),                                                        \
-        .type = KSD_DRIVER_DEMUX,                                                                 \
-        .rows = DT_PROP_LEN(n, input_gpios),                                                      \
-        .columns = (1U << DT_PROP_LEN(n, output_gpios)),                                          \
-        .inputs = DT_PROP_LEN(n, input_gpios),                                                    \
-        .debounce_press_ms = DT_PROP(n, debounce_period),                                         \
+        .dev = DEVICE_DT_GET(n),                                                                   \
+        .node_name = DT_NODE_FULL_NAME(n),                                                         \
+        .type = KSD_DRIVER_DEMUX,                                                                  \
+        .rows = DT_PROP_LEN(n, input_gpios),                                                       \
+        .columns = (1U << DT_PROP_LEN(n, output_gpios)),                                           \
+        .inputs = DT_PROP_LEN(n, input_gpios),                                                     \
+        .debounce_press_ms = DT_PROP(n, debounce_period),                                          \
         .debounce_release_ms = DT_PROP(n, debounce_period),                                        \
-        .debounce_scan_period_ms = 0,                                                             \
+        .debounce_scan_period_ms = 0,                                                              \
         .poll_period_ms = DT_PROP(n, polling_interval_msec),                                       \
         .diode_row2col = true,                                                                     \
-        .toggle_mode = false,                                                                     \
+        .toggle_mode = false,                                                                      \
         .gpio_lines = ksd_demux_lines_##n,                                                         \
         .gpio_line_count = ARRAY_SIZE(ksd_demux_lines_##n),                                        \
     };
@@ -259,13 +258,13 @@ static const struct ksd_device *const ksd_demux_devices[] = {
 
 #define KSD_MOCK_ENTRY(n)                                                                          \
     static const struct ksd_device ksd_mock_device_##n = {                                         \
-        .dev = DEVICE_DT_GET(n),                                                                  \
-        .node_name = DT_NODE_FULL_NAME(n),                                                        \
-        .type = KSD_DRIVER_MOCK,                                                                  \
-        .rows = DT_PROP_OR(n, rows, 0),                                                           \
+        .dev = DEVICE_DT_GET(n),                                                                   \
+        .node_name = DT_NODE_FULL_NAME(n),                                                         \
+        .type = KSD_DRIVER_MOCK,                                                                   \
+        .rows = DT_PROP_OR(n, rows, 0),                                                            \
         .columns = DT_PROP_OR(n, columns, 0),                                                      \
-        .inputs = 0,                                                                              \
-        .debounce_press_ms = 0,                                                                   \
+        .inputs = 0,                                                                               \
+        .debounce_press_ms = 0,                                                                    \
         .debounce_release_ms = 0,                                                                  \
         .debounce_scan_period_ms = 0,                                                              \
         .poll_period_ms = 0,                                                                       \
@@ -294,7 +293,7 @@ static const struct ksd_device *const ksd_mock_devices[] = {
  * ===========================================================================
  */
 
-#define KSD_LEAF_DEVICE_COUNT                                                                       \
+#define KSD_LEAF_DEVICE_COUNT                                                                      \
     (KSD_MATRIX_DEVICE_COUNT + KSD_DIRECT_DEVICE_COUNT + KSD_CHARLIE_DEVICE_COUNT +                \
      KSD_DEMUX_DEVICE_COUNT + KSD_MOCK_DEVICE_COUNT)
 
@@ -390,14 +389,14 @@ struct ksd_composite_child {
     int16_t col_offset;
 };
 
-#define KSD_COMPOSITE_CHILD(child)                                                                  \
-    {                                                                                               \
+#define KSD_COMPOSITE_CHILD(child)                                                                 \
+    {                                                                                              \
         .kscan = DEVICE_DT_GET(DT_PHANDLE(child, kscan)),                                          \
-        .row_offset = DT_PROP(child, row_offset),                                                   \
+        .row_offset = DT_PROP(child, row_offset),                                                  \
         .col_offset = DT_PROP_OR(child, col_offset, DT_PROP_OR(child, column_offset, 0)),          \
     },
 
-#define KSD_COMPOSITE_ENTRY(n)                                                                      \
+#define KSD_COMPOSITE_ENTRY(n)                                                                     \
     static const struct ksd_composite_child ksd_composite_children_##n[] = {                       \
         DT_FOREACH_CHILD(n, KSD_COMPOSITE_CHILD)};                                                 \
     static const struct device *const ksd_composite_dev_##n = DEVICE_DT_GET(n);
@@ -410,8 +409,8 @@ struct ksd_composite_wrapper {
     size_t child_count;
 };
 
-#define KSD_COMPOSITE_WRAPPER_REF(n)                                                                \
-    {                                                                                               \
+#define KSD_COMPOSITE_WRAPPER_REF(n)                                                               \
+    {                                                                                              \
         .wrapper = ksd_composite_dev_##n,                                                          \
         .children = ksd_composite_children_##n,                                                    \
         .child_count = ARRAY_SIZE(ksd_composite_children_##n),                                     \
@@ -439,8 +438,8 @@ struct ksd_sideband_wrapper {
     const struct device *inner;
 };
 
-#define KSD_SIDEBAND_ENTRY(n)                                                                       \
-    {                                                                                               \
+#define KSD_SIDEBAND_ENTRY(n)                                                                      \
+    {                                                                                              \
         .wrapper = DEVICE_DT_GET(n),                                                               \
         .inner = DEVICE_DT_GET(DT_PHANDLE(n, kscan)),                                              \
     },
@@ -477,7 +476,8 @@ static size_t ksd_topology_resolve(const struct device *dev, struct ksd_layout_d
     for (size_t i = 0; i < KSD_COMPOSITE_WRAPPER_COUNT; i++) {
         if (ksd_composite_wrappers[i].wrapper == dev) {
             size_t written = 0;
-            for (size_t c = 0; c < ksd_composite_wrappers[i].child_count && written < out_cap; c++) {
+            for (size_t c = 0; c < ksd_composite_wrappers[i].child_count && written < out_cap;
+                 c++) {
                 const struct ksd_composite_child *child = &ksd_composite_wrappers[i].children[c];
                 int32_t leaf_index = ksd_leaf_index_for_device(child->kscan);
                 if (leaf_index < 0) {
@@ -534,13 +534,13 @@ struct ksd_layout_dt_entry {
 
 /* Mirrors physical_layouts.c: an explicit `kscan` phandle wins, otherwise the
  * `zmk,kscan` chosen node is used as a fallback (if present). */
-#define KSD_LAYOUT_KSCAN_DEV(n)                                                                     \
-    COND_CODE_1(DT_NODE_HAS_PROP(n, kscan), (DEVICE_DT_GET(DT_PHANDLE(n, kscan))),                 \
-                (COND_CODE_1(DT_HAS_CHOSEN(zmk_kscan), (DEVICE_DT_GET(DT_CHOSEN(zmk_kscan))),      \
-                             (NULL))))
+#define KSD_LAYOUT_KSCAN_DEV(n)                                                                    \
+    COND_CODE_1(                                                                                   \
+        DT_NODE_HAS_PROP(n, kscan), (DEVICE_DT_GET(DT_PHANDLE(n, kscan))),                         \
+        (COND_CODE_1(DT_HAS_CHOSEN(zmk_kscan), (DEVICE_DT_GET(DT_CHOSEN(zmk_kscan))), (NULL))))
 
-#define KSD_LAYOUT_ENTRY(n)                                                                         \
-    {                                                                                               \
+#define KSD_LAYOUT_ENTRY(n)                                                                        \
+    {                                                                                              \
         .display_name = DT_PROP(n, display_name),                                                  \
         .rows = DT_PROP(DT_PHANDLE(n, transform), rows),                                           \
         .columns = DT_PROP(DT_PHANDLE(n, transform), columns),                                     \
@@ -560,8 +560,8 @@ static const struct ksd_layout_dt_entry ksd_layout_dt_entries[1];
 #define KSD_LAYOUT_MAX_DEVICES 4
 
 #if KSD_LAYOUT_DT_ENTRY_COUNT > 0
-static struct ksd_layout_device
-    ksd_layout_devices[KSD_LAYOUT_DT_ENTRY_COUNT][KSD_LAYOUT_MAX_DEVICES];
+static struct ksd_layout_device ksd_layout_devices[KSD_LAYOUT_DT_ENTRY_COUNT]
+                                                  [KSD_LAYOUT_MAX_DEVICES];
 static size_t ksd_layout_device_counts[KSD_LAYOUT_DT_ENTRY_COUNT];
 static struct ksd_layout ksd_layouts[KSD_LAYOUT_DT_ENTRY_COUNT];
 static bool ksd_layouts_ready;
