@@ -45,3 +45,17 @@ include:
     snippets:
       - studio-rpc-usb-uart
       - diag-charlieplex-demux
+
+  # Phase E hardware validation (DESIGN.md SS8/SS9): zmk,kscan-mock swapped in
+  # for tester_xiao's baseline direct kscan so the RPC chain can be exercised
+  # on real hardware with no physical switches attached. Also carries the
+  # rig-specific debug Kconfig from
+  # skills/develop-zmk-module/references/hardware-rig.md (log startup delay,
+  # RTT buffer size) so this artifact is flashable+RTT-debuggable as-is.
+  - artifact: kscan_diagnostics_board_hw_mock
+    board: xiao_ble//zmk
+    shield: tester_xiao
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256 -DCONFIG_LOG_PROCESS_THREAD_STARTUP_DELAY_MS=0 -DCONFIG_SEGGER_RTT_BUFFER_SIZE_UP=8192 -DCONFIG_USE_SEGGER_RTT=y -DCONFIG_LOG_BACKEND_RTT=y -DCONFIG_LOG=y
+    snippets:
+      - studio-rpc-usb-uart
+      - diag-hw-mock
