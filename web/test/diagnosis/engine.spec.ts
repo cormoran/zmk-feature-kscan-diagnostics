@@ -1,5 +1,5 @@
 import { diagnose } from "../../src/diagnosis/engine";
-import { KscanDriverType } from "../../src/proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+import { KscanDriverType } from "../../src/proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import type { DiagnosisInput } from "../../src/diagnosis/types";
 import {
   makeCells,

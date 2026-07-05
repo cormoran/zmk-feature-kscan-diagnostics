@@ -12,7 +12,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 #include <zmk/studio/custom.h>
-#include <cormoran/kscan-diagnostics/kscan_diagnostics.pb.h>
+#include <cormoran/kscan_diagnostics/kscan_diagnostics.pb.h>
 #include <cormoran/kscan_diagnostics/topology.h>
 #include <cormoran/kscan_diagnostics/stats.h>
 

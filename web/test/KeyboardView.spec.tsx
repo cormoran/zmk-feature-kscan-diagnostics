@@ -4,7 +4,7 @@ import { KeyboardView, type KeyState } from "../src/KeyboardView";
 import {
   KscanDriverType,
   GpioLineKind,
-} from "../src/proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+} from "../src/proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import { buildWiringMap } from "../src/kscanDiagnosticsTypes";
 import type {
   KscanDevice,

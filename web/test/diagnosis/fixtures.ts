@@ -3,8 +3,8 @@
  * (positions 0-8, row-major) with GPIO lines gpio0 pin 0-2 (rows) and
  * gpio1 pin 0-2 (columns).
  */
-import { KscanDriverType } from "../../src/proto/cormoran/kscan-diagnostics/kscan_diagnostics";
-import type { GpioPin } from "../../src/proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+import { KscanDriverType } from "../../src/proto/cormoran/kscan_diagnostics/kscan_diagnostics";
+import type { GpioPin } from "../../src/proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import type { PositionStatsEntry } from "../../src/kscanDiagnosticsTypes";
 import type {
   CellWiring,

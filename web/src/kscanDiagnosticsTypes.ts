@@ -1,15 +1,15 @@
 /**
  * Assembled, UI-friendly view over the cormoran__kscan_diagnostics custom RPC
  * subsystem (DESIGN.md §6-7). The raw generated messages
- * (`./proto/cormoran/kscan-diagnostics/kscan_diagnostics`) are paged and
+ * (`./proto/cormoran/kscan_diagnostics/kscan_diagnostics`) are paged and
  * fragmented on the wire; `useKscanDiagnostics` sequences the paging and
  * assembles the shapes below for the rest of the app to consume.
  */
 import {
   GpioLineKind,
   KscanDriverType,
-} from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
-import type { GpioPin } from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+} from "./proto/cormoran/kscan_diagnostics/kscan_diagnostics";
+import type { GpioPin } from "./proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 
 export interface KscanDevice {
   deviceIndex: number;

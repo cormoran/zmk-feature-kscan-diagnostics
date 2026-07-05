@@ -2,8 +2,8 @@
  * Pure types for the DiagnosisEngine (DESIGN.md §7). Framework-free so rules
  * can be jest-tested with plain fixtures.
  */
-import type { GpioPin } from "../proto/cormoran/kscan-diagnostics/kscan_diagnostics";
-import type { KscanDriverType } from "../proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+import type { GpioPin } from "../proto/cormoran/kscan_diagnostics/kscan_diagnostics";
+import type { KscanDriverType } from "../proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import type { PositionStatsEntry } from "../kscanDiagnosticsTypes";
 
 /** Per-position coverage state as tracked by the TestWizard. */

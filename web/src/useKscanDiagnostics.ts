@@ -15,8 +15,8 @@ import {
   GpioLineKind,
   Request,
   Response,
-} from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
-import type { GpioPin } from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+} from "./proto/cormoran/kscan_diagnostics/kscan_diagnostics";
+import type { GpioPin } from "./proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import type {
   KscanDevice,
   KscanLayout,

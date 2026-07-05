@@ -6,7 +6,7 @@
  * `diagnose()` runs every rule and returns the combined, de-duplicated list,
  * highest confidence first.
  */
-import { KscanDriverType } from "../proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+import { KscanDriverType } from "../proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import type { CellWiring, DiagnosisInput, Finding } from "./types";
 
 function gpioLabel(line: CellWiring["rowLine"]): string {

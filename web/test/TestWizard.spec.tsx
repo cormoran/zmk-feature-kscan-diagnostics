@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { TestWizard } from "../src/TestWizard";
-import { KscanDriverType } from "../src/proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+import { KscanDriverType } from "../src/proto/cormoran/kscan_diagnostics/kscan_diagnostics";
 import type { CellWiring, DiagnosisKeyEvent } from "../src/diagnosis/types";
 import type {
   PositionStatsEntry,
