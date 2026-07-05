@@ -7,8 +7,15 @@
  * exposes `getStats` (paged) / `resetStats`.
  */
 import { useCallback, useContext, useMemo, useState } from "react";
-import { ZMKAppContext, ZMKCustomSubsystem } from "@cormoran/zmk-studio-react-hook";
-import { GpioLineKind, Request, Response } from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
+import {
+  ZMKAppContext,
+  ZMKCustomSubsystem,
+} from "@cormoran/zmk-studio-react-hook";
+import {
+  GpioLineKind,
+  Request,
+  Response,
+} from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
 import type { GpioPin } from "./proto/cormoran/kscan-diagnostics/kscan_diagnostics";
 import type {
   KscanDevice,
@@ -48,27 +55,51 @@ async function callRpc(
   return resp;
 }
 
-async function fetchAllGpioPins(
+async function fetchGpioPinsOfKind(
   service: ZMKCustomSubsystem,
-  deviceIndex: number
+  deviceIndex: number,
+  kind: GpioLineKind
 ): Promise<GpioPin[]> {
   const pins: GpioPin[] = [];
   let offset = 0;
   for (let page = 0; page < MAX_PAGES; page++) {
     const resp = await callRpc(service, {
-      getGpioPins: {
-        deviceIndex,
-        kind: GpioLineKind.KIND_UNKNOWN,
-        offset,
-      },
+      getGpioPins: { deviceIndex, kind, offset },
     });
     const chunk = resp.gpioPins;
-    if (!chunk) throw new KscanDiagnosticsRpcError("Unexpected response to GetGpioPins");
+    if (!chunk)
+      throw new KscanDiagnosticsRpcError("Unexpected response to GetGpioPins");
     pins.push(...chunk.pins);
     offset = chunk.offset + chunk.pins.length;
     if (chunk.pins.length === 0 || offset >= chunk.total) break;
   }
   return pins;
+}
+
+/**
+ * GpioPin (the response message) carries no kind field — kind is only a
+ * GetGpioPins request-side filter (proto/.../kscan_diagnostics.proto) — so
+ * fetch one paged sequence per kind to keep them separated for
+ * `resolveRowColLines`. KIND_UNKNOWN is skipped: it means "unfiltered" on
+ * the wire, which would duplicate lines already fetched per-kind.
+ */
+async function fetchGpioLinesByKind(
+  service: ZMKCustomSubsystem,
+  deviceIndex: number
+): Promise<Record<GpioLineKind, GpioPin[]>> {
+  const kinds: GpioLineKind[] = [
+    GpioLineKind.ROW,
+    GpioLineKind.COL,
+    GpioLineKind.INPUT,
+    GpioLineKind.OUTPUT,
+    GpioLineKind.CHARLIE,
+  ];
+  const result = {} as Record<GpioLineKind, GpioPin[]>;
+  result[GpioLineKind.KIND_UNKNOWN] = [];
+  for (const kind of kinds) {
+    result[kind] = await fetchGpioPinsOfKind(service, deviceIndex, kind);
+  }
+  return result;
 }
 
 async function fetchPositionMap(
@@ -82,7 +113,10 @@ async function fetchPositionMap(
       getPositionMap: { layoutIndex, offset },
     });
     const chunk = resp.positionMap;
-    if (!chunk) throw new KscanDiagnosticsRpcError("Unexpected response to GetPositionMap");
+    if (!chunk)
+      throw new KscanDiagnosticsRpcError(
+        "Unexpected response to GetPositionMap"
+      );
     for (const cell of chunk.cells) {
       // 0 = unmapped, otherwise position+1 (DESIGN.md §6).
       cells.push(cell === 0 ? null : cell - 1);
@@ -99,8 +133,9 @@ async function fetchDevice(
 ): Promise<KscanDevice> {
   const resp = await callRpc(service, { getDevice: { deviceIndex } });
   const d = resp.device;
-  if (!d) throw new KscanDiagnosticsRpcError("Unexpected response to GetDevice");
-  const gpioLines = await fetchAllGpioPins(service, deviceIndex);
+  if (!d)
+    throw new KscanDiagnosticsRpcError("Unexpected response to GetDevice");
+  const gpioLinesByKind = await fetchGpioLinesByKind(service, deviceIndex);
   return {
     deviceIndex: d.deviceIndex,
     nodeName: d.nodeName,
@@ -114,7 +149,7 @@ async function fetchDevice(
     pollPeriodMs: d.pollPeriodMs,
     diodeRow2col: d.diodeRow2col,
     toggleMode: d.toggleMode,
-    gpioLines,
+    gpioLinesByKind,
   };
 }
 
@@ -124,7 +159,8 @@ async function fetchLayout(
 ): Promise<KscanLayout> {
   const resp = await callRpc(service, { getLayout: { layoutIndex } });
   const l = resp.layout;
-  if (!l) throw new KscanDiagnosticsRpcError("Unexpected response to GetLayout");
+  if (!l)
+    throw new KscanDiagnosticsRpcError("Unexpected response to GetLayout");
   const positionMap = await fetchPositionMap(service, layoutIndex);
   return {
     layoutIndex: l.layoutIndex,
@@ -144,7 +180,8 @@ async function fetchLayout(
 async function fetchTopology(service: ZMKCustomSubsystem): Promise<Topology> {
   const infoResp = await callRpc(service, { getInfo: {} });
   const info = infoResp.info;
-  if (!info) throw new KscanDiagnosticsRpcError("Unexpected response to GetInfo");
+  if (!info)
+    throw new KscanDiagnosticsRpcError("Unexpected response to GetInfo");
 
   const layouts: KscanLayout[] = [];
   for (let i = 0; i < info.layoutCount; i++) {
@@ -170,13 +207,16 @@ async function fetchTopology(service: ZMKCustomSubsystem): Promise<Topology> {
   };
 }
 
-async function fetchStats(service: ZMKCustomSubsystem): Promise<StatsByPosition> {
+async function fetchStats(
+  service: ZMKCustomSubsystem
+): Promise<StatsByPosition> {
   const byPosition: StatsByPosition = new Map();
   let offset = 0;
   for (let page = 0; page < MAX_PAGES; page++) {
     const resp = await callRpc(service, { getStats: { offset } });
     const chunk = resp.stats;
-    if (!chunk) throw new KscanDiagnosticsRpcError("Unexpected response to GetStats");
+    if (!chunk)
+      throw new KscanDiagnosticsRpcError("Unexpected response to GetStats");
     for (const e of chunk.entries) {
       const entry: PositionStatsEntry = {
         position: e.position,
