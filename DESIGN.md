@@ -164,7 +164,8 @@ temporarily-added diagnostics module; shrink via Kconfig for tiny MCUs.
 Fixed buckets (5/10/20/50 ms) let the web pick any threshold without a
 firmware setting. `reset` RPC zeroes everything. Guard concurrent access with
 a spinlock or by running entirely on the event thread (listener) + reading
-snapshot in RPC handler with lock held (copy per-chunk, 3 entries — cheap).
+snapshot in RPC handler with lock held (copy per-chunk, 2 entries — cheap;
+see §6 for why the page shrank from the originally-planned 3 to 2).
 
 ## 6. RPC protocol (`proto/cormoran/kscan_diagnostics/kscan_diagnostics.proto`)
 
@@ -180,7 +181,7 @@ field gets a `.options` max_size.**
 | `GetDevice{device_index}` | `Device{device_index, node_name(≤24), type, rows, columns, inputs, debounce_press_ms, debounce_release_ms, debounce_scan_period_ms, poll_period_ms, diode_row2col, toggle_mode}` | ~70 B |
 | `GetGpioPins{device_index, kind, offset}` | `GpioPins{total, offset, pins[≤4]{index, port(≤12), pin, active_low, dt_flags}}` | 4×~41 B ≈ 180 B (Phase B measured this against TX=256 and shrank the page from the originally-planned 6 to 4 to leave the required 64 B framing margin — see src/studio/kscan_diagnostics_handler.c) |
 | `GetPositionMap{layout_index, offset}` | `PositionMap{total, offset, cells[≤24]}` — row-major over rows×cols, value = position+1, 0 = unmapped | ≤24×5 B ≈ 130 B |
-| `GetStats{offset}` | `Stats{total, offset, entries[≤3] PositionStats{position, presses, releases, min_press_duration_ms, min_repress_gap_ms, repress_lt5/lt10/lt20/lt50, last_source}}` | 3×~50 B ≈ 160 B (largest → sizes the TX assert) |
+| `GetStats{offset}` | `Stats{total, offset, entries[≤2] PositionStats{position, presses, releases, min_press_duration_ms, min_repress_gap_ms, repress_lt5/lt10/lt20/lt50, last_source}}` | 2×~62 B ≈ 140 B (largest response → sizes the TX assert; **Phase C measured this against TX=256 and shrank the page from the originally-planned 3 to 2** — each PositionStats has 10 uint32 fields, ~3x GpioPin's field count, so 3 entries (~202 B) would have overflowed the 64 B framing margin — see src/studio/kscan_diagnostics_handler.c) |
 | `ResetStats{}` | `Ok{}` | |
 | (any decode/range error) | `Error{message ≤48}` | |
 
@@ -254,9 +255,22 @@ Rules must cite which evidence fired; confidence = simple tiers (high/med/low).
   - zero-device build: RPC handler + stats compile, Info returns 0 devices.
   - mock build: `zmk,kscan-mock` + matrix transform + physical layout in the
     test overlay; scripted mock events drive real `position_state_changed` →
-    assert stats counters (incl. a scripted fast re-press hitting the <20 ms
-    bucket) and PositionMap correctness through the RPC handler called
-    directly.
+    assert stats counters (incl. a scripted fast re-press) and PositionMap
+    correctness through the RPC handler called directly. **Phase C pitfall**:
+    `tests/studio/`'s board (`native_sim//zmk_test_mock`) sets `exit-after` on
+    the mock kscan device, which calls `exit(0)` shortly after the scripted
+    event list is exhausted; a stats test that needs to `k_sleep()` past the
+    last scripted event to assert via RPC races that auto-exit (and
+    `run-test.sh` has no timeout of its own, so simply deleting `exit-after`
+    without replacing it hangs the harness forever). Fix used here:
+    `tests/test.dtsi` deletes `exit-after` and the test itself calls `exit()`
+    once done (see `src/test/kscan_diagnostics_rpc_test.c`, same pattern as
+    `zmk-feature-watchdog`'s `watchdog_test.c`). Also,
+    `CONFIG_NATIVE_SIM_SLOWDOWN_TO_REAL_TIME=y` makes this a real
+    wall-clock-timed simulation (several ms of jitter per event hop observed
+    in practice), so timing assertions use tolerant ranges / the widest
+    chatter bucket (`<50ms`) rather than exact milliseconds or a narrow
+    bucket.
 - **Build tests** (`tests/zmk-config/build.yaml`, snippets under
   `tests/zmk-config/snippets/` — template snippet rule; assert in `test.py`):
   - `xiao_ble//zmk` + `tester_xiao` (direct kscan) + RPC on — baseline.
@@ -301,8 +315,10 @@ pre-commit run --all-files` + run the npm checks directly.
   build-test snippets (matrix/composite/charlieplex+demux). Biggest phase;
   the DT macro tables are the hard part — keep per-compat code in separate
   `#if DT_HAS_COMPAT_STATUS_OKAY(...)` blocks.
-- **C — stats** (§5): listener, counters, GetStats/ResetStats, native_sim test
-  with scripted mock events incl. fast re-press bucket assertion.
+- **C — stats** (§5) — **done**: listener, counters, GetStats/ResetStats,
+  native_sim test with scripted mock events incl. fast re-press bucket
+  assertion. Deviations: Stats page shrank to 2 entries (not 3, see §6);
+  see §8 for the `exit-after`/native_sim-timing pitfalls hit along the way.
 - **D — web UI** (§7): hooks, keyboard SVG + wiring overlay, wizard, diagnosis
   engine + jest fixtures, stats table. Decide buf-vs-vendor for input-stream
   proto here.
