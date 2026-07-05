@@ -77,8 +77,7 @@ def tracked_files() -> list[Path]:
 def is_excluded(path: Path, *, for_scan: bool) -> bool:
     rel = path.relative_to(REPO_ROOT).as_posix()
     if any(
-        rel.startswith(prefix) or rel == prefix.rstrip("/")
-        for prefix in EXCLUDED_PATHS
+        rel.startswith(prefix) or rel == prefix.rstrip("/") for prefix in EXCLUDED_PATHS
     ):
         return True
     if for_scan and rel in INSTRUCTION_FILES:
@@ -132,7 +131,7 @@ def build_replacements(
         ),
         ("your-name/template", f"{ns_kebab}/{mod_kebab}"),
         ("template_handler.c", f"{mod_snake}_handler.c"),
-        ("template_feature_meta", f"{mod_snake}_feature_meta"),
+        ("template_feature_meta", f"{mod_snake}_subsystem_meta"),
         ("template_rpc_handle_request", f"{mod_snake}_rpc_handle_request"),
         ("template_sample_bool", f"{mod_snake}_sample_bool"),
         ("template.proto", f"{mod_snake}.proto"),

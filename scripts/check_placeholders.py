@@ -22,9 +22,7 @@ TEMPLATE_MARKER = "## Initialization (first time only)"
 
 def main() -> int:
     agents_md = REPO_ROOT / "AGENTS.md"
-    if agents_md.is_file() and TEMPLATE_MARKER in agents_md.read_text(
-        encoding="utf-8"
-    ):
+    if agents_md.is_file() and TEMPLATE_MARKER in agents_md.read_text(encoding="utf-8"):
         return 0  # still the pristine template; placeholders are expected
 
     findings = scan_placeholders(skip_instruction_files=False)
