@@ -3,10 +3,15 @@
 ![ZMK Version](https://img.shields.io/badge/ZMK-master-blue)
 [![Test](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/zmk-module.yml) [![Devcontainer](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/devcontainer.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/devcontainer.yml)
 
-ZMK module for diagnosing keyscan (kscan) hardware problems — broken wires,
-bad solder joints on key sockets, switch chatter — from a web UI over ZMK
-Studio custom RPC. Firmware collects kscan topology and events; the web page
-visualizes key presses on the keyboard layout and estimates the root cause.
+ZMK module that helps you figure out why a keyboard is misbehaving —
+keys that don't register, keys that fire twice, or a whole row/column that's
+dead — without an oscilloscope or a debugger. The firmware watches your
+keyboard's existing key-scan (kscan) hardware and remembers, per key, how
+often it fired and how it timed out. A web page then draws your actual key
+layout, overlays which physical wire (row/column GPIO pin) each key sits on,
+walks you through a short test, and tells you in plain language what's likely
+wrong and what to check first — e.g. "row line on GPIO P0.05 looks broken,
+check that wire" instead of "some keys don't work."
 
 This module uses the **unofficial** custom ZMK Studio RPC protocol.
 
@@ -14,62 +19,105 @@ This module uses the **unofficial** custom ZMK Studio RPC protocol.
 
 This module includes:
 
-- **Firmware**: Custom Studio RPC handler (`src/studio/kscan_diagnostics_handler.c`)
-- **Protocol**: Protobuf definition (`proto/cormoran/kscan-diagnostics/kscan_diagnostics.proto`)
-- **Web UI**: React + TypeScript app (`web/`) using [@cormoran/zmk-studio-react-hook](https://github.com/cormoran/react-zmk-studio)
-- **Tests**: Firmware unit tests (`tests/studio/`) and build tests (`tests/zmk-config/`)
+- **Firmware**: kscan topology + per-key statistics, exposed over a custom
+  Studio RPC handler (`src/studio/kscan_diagnostics_handler.c`)
+- **Protocol**: Protobuf definition
+  (`proto/cormoran/kscan_diagnostics/kscan_diagnostics.proto`)
+- **Web UI**: React + TypeScript app (`web/`) that renders your keyboard,
+  overlays wiring, runs a guided test, and estimates the fault — using
+  [@cormoran/zmk-studio-react-hook](https://github.com/cormoran/react-zmk-studio)
+- **Tests**: Firmware unit tests (`tests/`) and build tests
+  (`tests/zmk-config/`)
 
-Detailed usage docs are TODO — the feature is still being implemented.
+## Who this is for / prerequisites
 
-## More Info
+This works with **any keyboard built on ZMK's official kscan drivers** —
+matrix, direct-pin, charlieplex, demux, and the `composite`/
+`sideband-behaviors` wrappers around them — so it should work on essentially
+any ZMK board without firmware changes beyond adding this module.
 
-For more info on modules, you can read through through the [Zephyr modules page](https://docs.zephyrproject.org/3.5.0/develop/modules.html) and [ZMK's page on using modules](https://zmk.dev/docs/features/modules). [Zephyr's west manifest page](https://docs.zephyrproject.org/3.5.0/develop/west/manifest.html#west-manifests) may also be of use.
+You need:
+
+- A ZMK build that already includes [ZMK Studio](https://zmk.dev/docs/features/studio)
+  support (`CONFIG_ZMK_STUDIO=y`) — this module rides on Studio's connection
+  (USB or BLE) to talk to the web page.
+- A way to connect the keyboard to your computer for the diagnosis session
+  (USB cable, or BLE if your Studio transport supports it).
+
+Optional, but recommended if you can add it:
+
+- [zmk-feature-input-stream](https://github.com/cormoran/zmk-feature-input-stream)
+  makes the web page's keyboard view **light up live** as you press keys,
+  which makes the guided test much easier to follow. Without it, the web UI
+  falls back to polling this module's counters a couple of times a second and
+  diffing them — it still works and the end diagnosis is identical, just
+  without the live visual feedback. Note that input-stream's RPC subsystem is
+  **SECURED**, so live view requires unlocking ZMK Studio on the keyboard
+  first (or building with `CONFIG_ZMK_STUDIO_LOCKING=n` for a
+  diagnostics-only build) — this module's own RPC subsystem is deliberately
+  **unsecured** so topology/stats are readable even on a keyboard too broken
+  to type the unlock combo.
 
 ## Module User Guide
 
-1. Add dependency to your `config/west.yml`. Note: this module requires a patched ZMK with custom Studio RPC support.
+1. Add the dependency to your `config/west.yml`. Note: this module requires a
+   patched ZMK with custom Studio RPC support.
 
-   ```yml
+   ```yaml
    manifest:
-       remotes:
-           ...
-           - name: cormoran
-           url-base: https://github.com/cormoran
-       projects:
-           ...
-           - name: zmk-feature-kscan-diagnostics
-           remote: cormoran
-           revision: main+custom-studio-protocol # or latest commit hash
-           import: true
-           ...
-           # Required: patched ZMK with custom Studio RPC support
-           - name: zmk
-           remote: cormoran
-           revision: main+custom-studio-protocol
-           import:
-               file: app/west.yml
+     remotes:
+       - name: cormoran
+         url-base: https://github.com/cormoran
+     projects:
+       - name: zmk-feature-kscan-diagnostics
+         remote: cormoran
+         revision: main
+         import: true
+       # Optional: live key-press visualization in the web UI (see above)
+       - name: zmk-feature-input-stream
+         remote: cormoran
+         revision: main
+         import: true
+       # Required: patched ZMK with custom Studio RPC support
+       - name: zmk
+         remote: cormoran
+         revision: main+custom-studio-protocol
+         import:
+           file: app/west.yml
    ```
 
-2. Enable flags in your `config/<shield>.conf`
+2. Enable flags in your `config/<shield>.conf`:
 
    ```conf
-   CONFIG_ZMK_KSCAN_DIAGNOSTICS=y
-
-   # Optionally enable custom Studio RPC
    CONFIG_ZMK_STUDIO=y
+   CONFIG_ZMK_KSCAN_DIAGNOSTICS=y
    CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y
-   CONFIG_ZMK_CUSTOM_SETTINGS=y
-   CONFIG_ZMK_CUSTOM_SETTINGS_STUDIO_RPC=y
-   CONFIG_ZMK_STUDIO_RPC_RX_BUF_SIZE=128
+   CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
+
+   # Optional: enable zmk-feature-input-stream for live key-press
+   # visualization in the web UI (needs unlocking Studio to view).
+   CONFIG_ZMK_INPUT_STREAM_FEATURE=y
+   CONFIG_ZMK_INPUT_STREAM_FEATURE_STUDIO_RPC=y
+   # Encoding nanopb requires more stack space
    CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE=2048
    ```
 
-3. TODO: kscan topology collection, the diagnostics Studio RPC surface, and
-   the web UI are not implemented yet -- this module is currently just the
-   template scaffold. For now see:
-   - `proto/cormoran/kscan-diagnostics/kscan_diagnostics.proto` — message types (placeholder)
-   - `src/studio/kscan_diagnostics_handler.c` — firmware RPC handler (placeholder)
-   - `web/src/App.tsx` — web UI (placeholder)
+3. Flash your keyboard, then open the
+   [web UI](https://cormoran.github.io/zmk-feature-kscan-diagnostics/) (or run
+   it locally, see `web/README.md`) and connect over WebSerial.
+
+### Kconfig options
+
+| Symbol | Type | Default | Meaning |
+|---|---|---|---|
+| `CONFIG_ZMK_KSCAN_DIAGNOSTICS` | bool | `n` | Master switch. Enables kscan topology collection and per-key statistics. |
+| `CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC` | bool | `y` (once `ZMK_STUDIO` is enabled) | Exposes the diagnostics data over the custom Studio RPC subsystem so the web UI can read it. Only depends on `ZMK_STUDIO`, not on which kscan driver you use. |
+| `CONFIG_ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS` | int | `128` | How many keymap positions get a statistics slot (~28 bytes RAM each). Raise it only if your layout has more than 128 positions; lower it to save RAM on very small MCUs. |
+
+(There are also two test-only Kconfig symbols,
+`CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST` and
+`CONFIG_ZMK_KSCAN_DIAGNOSTICS_MOCK_TIMING_TEST`, used by this repo's own
+native_sim tests. Leave both off in a real keyboard build.)
 
 ### Web UI
 
@@ -77,9 +125,106 @@ See [web/README.md](./web/README.md) for web UI development instructions.
 
 ### Publishing Web UI
 
-**GitHub Pages**: Merge a pull request into `main+custom-studio-protocol` to deploy to `https://<account>.github.io/<repo>/`.
+**GitHub Pages**: Merge a pull request into `main+custom-studio-protocol` to
+deploy to `https://<account>.github.io/<repo>/`.
 
-**Cloudflare Workers (PR previews)**: Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets.
+**Cloudflare Workers (PR previews)**: Configure `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` secrets.
+
+## How to diagnose a keyboard problem
+
+Open the web UI at
+[https://cormoran.github.io/zmk-feature-kscan-diagnostics/](https://cormoran.github.io/zmk-feature-kscan-diagnostics/)
+(or your own local/self-hosted copy) and click **Connect Serial** to pick your
+keyboard over WebSerial.
+
+1. **Keyboard view.** Once connected, the page draws your keyboard's actual
+   key layout (the same layout data ZMK Studio itself uses) and colors each
+   key by what's currently known about it: untested, OK, pressed right now,
+   suspect, dead, or "wiring unavailable" (see limitations below). Hover a
+   key to see its row/column, which GPIO port and pin its row line and column
+   line are wired to, and its debounce settings. Toggle **wiring mode** to
+   draw colored outlines around every key sharing a row or column line — this
+   makes it visually obvious when a whole line is affected rather than one
+   key.
+
+2. **Run the test wizard.** This is the main guided flow, in four steps:
+   - **Coverage** — press every key once, in any order. As each key is
+     recognized, it's marked OK. If `zmk-feature-input-stream` is connected
+     and unlocked you'll see this happen live; otherwise the page polls the
+     firmware's counters a couple of times a second, which works the same
+     but with a short delay.
+   - **Retest** — for any key that wasn't seen, the wizard asks you to press
+     that specific key several times, to tell apart "completely dead" from
+     "sometimes works."
+   - **Chatter check** — the wizard looks at how quickly each key was
+     released and pressed again. A slider lets you pick how strict to be
+     (keys that double-fire within 5/10/20/50 ms).
+   - **Report** — a plain-language list of findings, each with a suggested
+     fix (see below).
+
+3. **Stats table.** A raw table of per-key press/release counts and timing,
+   with a reset button and CSV export, if you want the numbers directly.
+
+### Reading the findings
+
+| Finding | What it means | What to check |
+|---|---|---|
+| **Row fault** / **Column fault** | Two or more dead keys share the same row (or column) wire, and the other wire each of those keys needs has already been proven to work. | The single row/column wire is almost certainly the problem. The finding names the exact GPIO port and pin — check that wire's continuity, its solder joint at the controller, and any connector/diode along that line. |
+| **Key fault** | One key is dead, but its row and its column have both been proven to work through other keys. | The fault is local to this one switch: reflow the solder joints under it, check the diode if it's a matrix board, or swap the switch. |
+| **Chatter** | A key fires press/release/press again faster than a real human keystroke (faster than your chosen threshold). | Usually a worn or low-quality switch — try cleaning or replacing it. If it's borderline, you can also raise the firmware's debounce time (the finding shows the board's current debounce setting in milliseconds) as a software workaround. |
+| **Ghost** | An unexpected key appeared to be pressed while you were holding down other keys that form a rectangle with it on the matrix — the classic "ghosting" caused by current flowing back through unwanted diodes. | Check the diode at the reported key position (missing, backwards, or shorted diode). This only applies to matrix keyboards. |
+| **Unstable line** | A row or column wasn't consistently dead, but its keys passed and failed inconsistently across repeated tests. | The wire itself is probably making intermittent contact rather than being fully broken. Gently wiggle/flex the wire and its connector while watching the keyboard view — if keys flicker between OK and dead, you've found the loose spot. |
+| **Software suspect** | The keyboard reports the key press correctly (no wiring/chatter finding), but you told the wizard the character/behavior is still wrong. | This isn't a hardware problem — check your keymap or behavior configuration instead. |
+
+Each finding also shows a confidence level (high/medium/low) and the raw
+evidence that triggered it, so you can judge it yourself if the suggested fix
+doesn't pan out.
+
+### Limitations (things this tool can't see)
+
+- **It only sees keys after debouncing.** The firmware only knows about a key
+  press once its kscan driver's debounce filter has accepted it. Very brief
+  chatter shorter than that debounce window is invisible — but that's also
+  chatter too short to bother you in practice, so the tool focuses on the
+  chatter that actually causes double letters.
+- **Live view timing is approximate; the reported stats are exact.** The
+  optional live key-press view is for your eyes, to make the test wizard
+  pleasant to use — it doesn't carry precise timestamps. All chatter/timing
+  findings are computed from counters kept on the keyboard itself, which are
+  exact regardless of whether the live view is connected.
+- **On a split keyboard, only the half plugged into your computer (the
+  "central") gets wiring information.** Keys from the other half (the
+  "peripheral") are still counted for press/release/chatter statistics, but
+  the web UI can't show you which wire they're on, and its chatter timing is
+  only approximate (there's a small extra delay from the wireless/wired link
+  between the halves). The keyboard view labels peripheral-half keys "wiring
+  info unavailable, timing approximate."
+- **A ghost key that lands on a completely unused matrix position is
+  invisible.** If your matrix has more physical row/column intersections than
+  keys in your layout, a phantom press on one of those unused intersections
+  can't be reported — there's no key there for the wizard to color. Phantom
+  presses on real, mapped keys (the usual case) are detected normally.
+
+## How it works
+
+The firmware half reads your kscan driver's devicetree configuration at
+compile time (there's no runtime API for it) to build a table of which GPIO
+line backs each row/column/input, and keeps small per-key counters (press
+count, release count, and how fast repeat presses arrive) updated by
+listening to the same key events ZMK's keymap already produces. The web UI
+asks Studio for your official key layout (so it draws exactly what
+zmk.studio would), asks this module for the wiring table and counters over
+its own custom RPC subsystem, and — only in the web UI, so the fault rules
+can be iterated quickly — turns all of that into the findings described
+above. See [DESIGN.md](./DESIGN.md) for the full technical design, protocol
+definition, and the reasoning behind these choices, and
+[docs/validation.md](./docs/validation.md) for a real-hardware validation
+run.
+
+## More Info
+
+For more info on modules, you can read through through the [Zephyr modules page](https://docs.zephyrproject.org/3.5.0/develop/modules.html) and [ZMK's page on using modules](https://zmk.dev/docs/features/modules). [Zephyr's west manifest page](https://docs.zephyrproject.org/3.5.0/develop/west/manifest.html#west-manifests) may also be of use.
 
 ## Module Development Guide
 
