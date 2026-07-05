@@ -13,6 +13,7 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <zephyr/init.h>
@@ -137,7 +138,7 @@ static int test_rpc_get_info(void) {
         return -EINVAL;
     }
     const cormoran_kscan_diagnostics_Info *info = &resp.response_type.info;
-    if (info->layout_count != 1 || info->device_count != 1 || info->stats_enabled != false ||
+    if (info->layout_count != 1 || info->device_count != 1 || info->stats_enabled != true ||
         info->max_positions != CONFIG_ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS) {
         LOG_ERR("unexpected Info: layout_count=%u device_count=%u stats_enabled=%d "
                 "max_positions=%u",
@@ -277,6 +278,144 @@ static int test_rpc_get_position_map(void) {
     return 0;
 }
 
+/*
+ * ../test.dtsi scripts kscan mock events (see the comment there for the exact
+ * timeline): position 0 (RC(0,0)) gets a press/release pair (~20ms nominal
+ * hold), then a fast re-press with a ~30ms nominal release->press gap
+ * (targeting the "<50ms" chatter bucket, which has the widest margin);
+ * position 1 (RC(0,1)) gets a single press/release pair with no repress, to
+ * prove counters are tracked independently per position. All events fire
+ * within the first ~100ms of boot; kscan_diagnostics_rpc_test_init() sleeps
+ * past that before asserting, so this must run after the sleep.
+ *
+ * CONFIG_NATIVE_SIM_SLOWDOWN_TO_REAL_TIME=y makes this a real wall-clock-timed
+ * simulation (not instant), so exact millisecond assertions on
+ * min_press_duration_ms / min_repress_gap_ms would be flaky; this asserts
+ * tolerant ranges and bucket membership instead.
+ */
+static int test_rpc_get_stats(void) {
+    cormoran_kscan_diagnostics_Request req = cormoran_kscan_diagnostics_Request_init_zero;
+    req.which_request_type = cormoran_kscan_diagnostics_Request_get_stats_tag;
+    req.request_type.get_stats.offset = 0;
+
+    cormoran_kscan_diagnostics_Response resp;
+    if (!call_kscan_diagnostics_rpc(&req, &resp)) {
+        return -EINVAL;
+    }
+
+    if (resp.which_response_type != cormoran_kscan_diagnostics_Response_stats_tag) {
+        LOG_ERR("expected stats response, got %d", resp.which_response_type);
+        return -EINVAL;
+    }
+    const cormoran_kscan_diagnostics_Stats *stats = &resp.response_type.stats;
+    if (stats->total != CONFIG_ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS || stats->offset != 0 ||
+        stats->entries_count != 2) {
+        LOG_ERR("unexpected Stats: total=%u offset=%u entries_count=%u", stats->total,
+                stats->offset, (unsigned int)stats->entries_count);
+        return -EINVAL;
+    }
+
+    const cormoran_kscan_diagnostics_PositionStats *pos0 = &stats->entries[0];
+    if (pos0->position != 0 || pos0->presses != 2 || pos0->releases != 2 ||
+        pos0->min_press_duration_ms < 10 || pos0->min_press_duration_ms > 40 ||
+        pos0->min_repress_gap_ms < 20 || pos0->min_repress_gap_ms >= 50 || pos0->repress_lt5 != 0 ||
+        pos0->repress_lt10 != 0 || pos0->repress_lt20 != 0 || pos0->repress_lt50 != 1 ||
+        pos0->last_source != UINT8_MAX) {
+        LOG_ERR("unexpected PositionStats[0]: presses=%u releases=%u min_press=%u min_gap=%u "
+                "lt5=%u lt10=%u lt20=%u lt50=%u source=%u",
+                pos0->presses, pos0->releases, pos0->min_press_duration_ms,
+                pos0->min_repress_gap_ms, pos0->repress_lt5, pos0->repress_lt10, pos0->repress_lt20,
+                pos0->repress_lt50, pos0->last_source);
+        return -EINVAL;
+    }
+
+    const cormoran_kscan_diagnostics_PositionStats *pos1 = &stats->entries[1];
+    if (pos1->position != 1 || pos1->presses != 1 || pos1->releases != 1 ||
+        pos1->min_press_duration_ms < 10 || pos1->min_press_duration_ms > 40 ||
+        pos1->min_repress_gap_ms != UINT16_MAX || pos1->repress_lt5 != 0 ||
+        pos1->repress_lt10 != 0 || pos1->repress_lt20 != 0 || pos1->repress_lt50 != 0) {
+        LOG_ERR("unexpected PositionStats[1]: presses=%u releases=%u min_press=%u min_gap=%u",
+                pos1->presses, pos1->releases, pos1->min_press_duration_ms,
+                pos1->min_repress_gap_ms);
+        return -EINVAL;
+    }
+
+    LOG_INF("PASS: kscan_diagnostics_rpc_get_stats");
+    return 0;
+}
+
+static int test_rpc_get_stats_offset(void) {
+    /* offset=2 skips position 0 and 1 (both already exercised above); the
+     * next entries are untouched positions, all-zero except the two
+     * "no observation yet" sentinels. */
+    cormoran_kscan_diagnostics_Request req = cormoran_kscan_diagnostics_Request_init_zero;
+    req.which_request_type = cormoran_kscan_diagnostics_Request_get_stats_tag;
+    req.request_type.get_stats.offset = 2;
+
+    cormoran_kscan_diagnostics_Response resp;
+    if (!call_kscan_diagnostics_rpc(&req, &resp)) {
+        return -EINVAL;
+    }
+    if (resp.which_response_type != cormoran_kscan_diagnostics_Response_stats_tag) {
+        LOG_ERR("expected stats response, got %d", resp.which_response_type);
+        return -EINVAL;
+    }
+    const cormoran_kscan_diagnostics_Stats *stats = &resp.response_type.stats;
+    if (stats->offset != 2 || stats->entries_count != 2) {
+        LOG_ERR("unexpected Stats page: offset=%u entries_count=%u", stats->offset,
+                (unsigned int)stats->entries_count);
+        return -EINVAL;
+    }
+    const cormoran_kscan_diagnostics_PositionStats *pos2 = &stats->entries[0];
+    if (pos2->position != 2 || pos2->presses != 0 || pos2->releases != 0 ||
+        pos2->min_press_duration_ms != UINT16_MAX || pos2->min_repress_gap_ms != UINT16_MAX) {
+        LOG_ERR("unexpected untouched PositionStats[2]: presses=%u releases=%u min_press=%u "
+                "min_gap=%u",
+                pos2->presses, pos2->releases, pos2->min_press_duration_ms,
+                pos2->min_repress_gap_ms);
+        return -EINVAL;
+    }
+
+    LOG_INF("PASS: kscan_diagnostics_rpc_get_stats_offset");
+    return 0;
+}
+
+static int test_rpc_reset_stats(void) {
+    cormoran_kscan_diagnostics_Request req = cormoran_kscan_diagnostics_Request_init_zero;
+    req.which_request_type = cormoran_kscan_diagnostics_Request_reset_stats_tag;
+
+    cormoran_kscan_diagnostics_Response resp;
+    if (!call_kscan_diagnostics_rpc(&req, &resp)) {
+        return -EINVAL;
+    }
+    if (resp.which_response_type != cormoran_kscan_diagnostics_Response_ok_tag) {
+        LOG_ERR("expected ok response for reset_stats, got %d", resp.which_response_type);
+        return -EINVAL;
+    }
+
+    /* Verify the reset actually zeroed position 0's counters. */
+    cormoran_kscan_diagnostics_Request get_req = cormoran_kscan_diagnostics_Request_init_zero;
+    get_req.which_request_type = cormoran_kscan_diagnostics_Request_get_stats_tag;
+    get_req.request_type.get_stats.offset = 0;
+
+    cormoran_kscan_diagnostics_Response get_resp;
+    if (!call_kscan_diagnostics_rpc(&get_req, &get_resp)) {
+        return -EINVAL;
+    }
+    const cormoran_kscan_diagnostics_PositionStats *pos0 = &get_resp.response_type.stats.entries[0];
+    if (pos0->presses != 0 || pos0->releases != 0 || pos0->min_press_duration_ms != UINT16_MAX ||
+        pos0->min_repress_gap_ms != UINT16_MAX || pos0->repress_lt50 != 0) {
+        LOG_ERR("unexpected PositionStats[0] after reset: presses=%u releases=%u min_press=%u "
+                "min_gap=%u lt50=%u",
+                pos0->presses, pos0->releases, pos0->min_press_duration_ms,
+                pos0->min_repress_gap_ms, pos0->repress_lt50);
+        return -EINVAL;
+    }
+
+    LOG_INF("PASS: kscan_diagnostics_rpc_reset_stats");
+    return 0;
+}
+
 static int test_rpc_unknown_index_errors(void) {
     cormoran_kscan_diagnostics_Request req = cormoran_kscan_diagnostics_Request_init_zero;
     req.which_request_type = cormoran_kscan_diagnostics_Request_get_device_tag;
@@ -327,7 +466,46 @@ static int kscan_diagnostics_rpc_test_init(void) {
         return ret;
     }
 
+    /* ../test.dtsi's scripted kscan mock events all fire within the first
+     * ~100ms of boot (see the comment above test_rpc_get_stats); sleep past
+     * that so the stats listener has observed every scripted event before we
+     * assert on it. */
+    k_sleep(K_MSEC(300));
+
+    ret = test_rpc_get_stats();
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = test_rpc_get_stats_offset();
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = test_rpc_reset_stats();
+    if (ret < 0) {
+        return ret;
+    }
+
     return 0;
 }
 
-SYS_INIT(kscan_diagnostics_rpc_test_init, APPLICATION, 99);
+static int kscan_diagnostics_rpc_test_run(void) {
+    int ret = kscan_diagnostics_rpc_test_init();
+
+    /*
+     * ../test.dtsi deletes &kscan's `exit-after` property (see the comment
+     * there) precisely so nothing else terminates this process -- run-test.sh
+     * has no timeout of its own and simply waits for zmk.exe's stdout to
+     * close, so this test must call exit() itself once done, the same
+     * pattern zmk-feature-watchdog's src/test/watchdog_test.c uses to end a
+     * test that permanently wedges a workqueue. A LOG_ERR from a failing
+     * assertion above has already been emitted by this point, so run-test.sh
+     * (which only diffs stdout, not the process exit code) still reports the
+     * mismatch correctly even though we unconditionally exit(0) here.
+     */
+    exit(ret < 0 ? 1 : 0);
+    return 0; /* unreachable */
+}
+
+SYS_INIT(kscan_diagnostics_rpc_test_run, APPLICATION, 99);

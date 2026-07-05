@@ -101,6 +101,31 @@ message PositionMap {
 
 message Error { string message = 1; }
 
+message GetStats { uint32 offset = 1; }
+
+message PositionStats {
+    uint32 position = 1;
+    uint32 presses = 2;
+    uint32 releases = 3;
+    uint32 min_press_duration_ms = 4;
+    uint32 min_repress_gap_ms = 5;
+    uint32 repress_lt5 = 6;
+    uint32 repress_lt10 = 7;
+    uint32 repress_lt20 = 8;
+    uint32 repress_lt50 = 9;
+    uint32 last_source = 10;
+}
+
+message Stats {
+    uint32 total = 1;
+    uint32 offset = 2;
+    repeated PositionStats entries = 3;
+}
+
+message ResetStats {}
+
+message Ok {}
+
 message Request {
     oneof request_type {
         GetInfo get_info = 1;
@@ -108,6 +133,8 @@ message Request {
         GetDevice get_device = 3;
         GetGpioPins get_gpio_pins = 4;
         GetPositionMap get_position_map = 5;
+        GetStats get_stats = 6;
+        ResetStats reset_stats = 7;
     }
 }
 
@@ -119,5 +146,7 @@ message Response {
         Device device = 4;
         GpioPins gpio_pins = 5;
         PositionMap position_map = 6;
+        Stats stats = 7;
+        Ok ok = 8;
     }
 }

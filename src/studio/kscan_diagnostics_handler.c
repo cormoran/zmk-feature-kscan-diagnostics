@@ -14,6 +14,7 @@
 #include <zmk/studio/custom.h>
 #include <cormoran/kscan-diagnostics/kscan_diagnostics.pb.h>
 #include <cormoran/kscan_diagnostics/topology.h>
+#include <cormoran/kscan_diagnostics/stats.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -42,23 +43,44 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
  *   ------------------------------------------------------------------
  *   total                                                   ~=        64
  *
- * GpioPins is the larger of the two.  Response oneof wrapper adds a few more
- * bytes; rounded up with headroom below.
+ * Stats (KSCAN_DIAGNOSTICS_RPC_STATS_PAGE_SIZE entries, must match
+ * kscan_diagnostics.options' Stats.entries max_count): DESIGN.md SS6
+ * originally estimated 3 entries would fit in TX=256, but checking the
+ * arithmetic below (each PositionStats has 10 uint32 fields, nearly 3x
+ * GpioPin's field count) shows 3 entries overflows the budget; shrunk to 2,
+ * the same kind of adjustment Phase B made for GpioPins (6 -> 4 pins/page).
+ *   total, offset (2 uint32 fields)                         ~=        12
+ *   per PositionStats: position, presses, releases,
+ *     min_press_duration_ms, min_repress_gap_ms, repress_lt5/10/20/50,
+ *     last_source (10 uint32 fields)                        ~= 10 *  6 = 60
+ *               submessage tag+len                           ~=         2
+ *   per entry total                                          ~=        62
+ *   2 entries                                                ~=       124
+ *   Stats submessage tag+len                                 ~=         4
+ *   ------------------------------------------------------------------
+ *   total                                                    ~=       140
+ *
+ * Stats is the largest of the chunked responses (GpioPins ~180 total incl.
+ * headroom below, PositionMap ~64), but GpioPins' own arithmetic already
+ * requires 180 + 64 = 244 <= 256, so the shared BUILD_ASSERT below is sized
+ * against GpioPins' 180, which still comfortably covers Stats' 140.
  * CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256 is configured in
  * tests/studio/native_sim.conf and tests/zmk-config/build.yaml.
  */
 #define KSCAN_DIAGNOSTICS_RPC_GPIO_PAGE_SIZE 4
 #define KSCAN_DIAGNOSTICS_RPC_POSITION_PAGE_SIZE 24
+#define KSCAN_DIAGNOSTICS_RPC_STATS_PAGE_SIZE 2
 #define KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE 180
 
 BUILD_ASSERT(KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE + 64 <=
                  CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE,
              "CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE is too small for a full kscan diagnostics "
-             "GpioPins response -- see the arithmetic comment above");
+             "GpioPins/Stats response -- see the arithmetic comment above");
 
 BUILD_ASSERT(KSCAN_DIAGNOSTICS_RPC_GPIO_PAGE_SIZE <= 4, "must match kscan_diagnostics.options");
 BUILD_ASSERT(KSCAN_DIAGNOSTICS_RPC_POSITION_PAGE_SIZE <= 24,
              "must match kscan_diagnostics.options");
+BUILD_ASSERT(KSCAN_DIAGNOSTICS_RPC_STATS_PAGE_SIZE <= 2, "must match kscan_diagnostics.options");
 
 static struct zmk_rpc_custom_subsystem_meta kscan_diagnostics_subsystem_meta = {
     ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS("https://cormoran.github.io/zmk-feature-kscan-diagnostics/"),
@@ -91,7 +113,7 @@ static void handle_get_info(const cormoran_kscan_diagnostics_GetInfo *req,
     info.layout_count = (uint32_t)ksd_topology_layout_count();
     info.selected_layout = (uint32_t)ksd_topology_selected_layout();
     info.device_count = (uint32_t)ksd_topology_device_count();
-    info.stats_enabled = false; /* stats land in Phase C */
+    info.stats_enabled = true;
     info.max_positions = CONFIG_ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS;
     info.uptime_ms = (uint32_t)k_uptime_get();
 
@@ -237,6 +259,54 @@ static void handle_get_position_map(const cormoran_kscan_diagnostics_GetPosition
     resp->response_type.position_map = out;
 }
 
+static void fill_position_stats(cormoran_kscan_diagnostics_PositionStats *out, uint32_t position,
+                                const struct ksd_pos_stats *stats) {
+    out->position = position;
+    out->presses = stats->presses;
+    out->releases = stats->releases;
+    out->min_press_duration_ms = stats->min_press_duration_ms;
+    out->min_repress_gap_ms = stats->min_repress_gap_ms;
+    out->repress_lt5 = stats->repress_lt[0];
+    out->repress_lt10 = stats->repress_lt[1];
+    out->repress_lt20 = stats->repress_lt[2];
+    out->repress_lt50 = stats->repress_lt[3];
+    out->last_source = stats->last_source;
+}
+
+static void handle_get_stats(const cormoran_kscan_diagnostics_GetStats *req,
+                             cormoran_kscan_diagnostics_Response *resp) {
+    cormoran_kscan_diagnostics_Stats out = cormoran_kscan_diagnostics_Stats_init_zero;
+
+    uint32_t total = (uint32_t)ksd_stats_max_positions();
+    out.total = total;
+    out.offset = req->offset;
+
+    for (uint32_t position = req->offset;
+         position < total && out.entries_count < KSCAN_DIAGNOSTICS_RPC_STATS_PAGE_SIZE;
+         position++) {
+        struct ksd_pos_stats stats;
+        if (!ksd_stats_get(position, &stats)) {
+            break;
+        }
+        fill_position_stats(&out.entries[out.entries_count], position, &stats);
+        out.entries_count++;
+    }
+
+    resp->which_response_type = cormoran_kscan_diagnostics_Response_stats_tag;
+    resp->response_type.stats = out;
+}
+
+static void handle_reset_stats(const cormoran_kscan_diagnostics_ResetStats *req,
+                               cormoran_kscan_diagnostics_Response *resp) {
+    ARG_UNUSED(req);
+
+    ksd_stats_reset_all();
+
+    cormoran_kscan_diagnostics_Ok out = cormoran_kscan_diagnostics_Ok_init_zero;
+    resp->which_response_type = cormoran_kscan_diagnostics_Response_ok_tag;
+    resp->response_type.ok = out;
+}
+
 static bool kscan_diagnostics_rpc_handle_request(const zmk_custom_CallRequest *raw_request,
                                                  pb_callback_t *encode_response) {
     cormoran_kscan_diagnostics_Response *resp = ZMK_RPC_CUSTOM_SUBSYSTEM_RESPONSE_BUFFER_ALLOCATE(
@@ -267,6 +337,12 @@ static bool kscan_diagnostics_rpc_handle_request(const zmk_custom_CallRequest *r
         break;
     case cormoran_kscan_diagnostics_Request_get_position_map_tag:
         handle_get_position_map(&req.request_type.get_position_map, resp);
+        break;
+    case cormoran_kscan_diagnostics_Request_get_stats_tag:
+        handle_get_stats(&req.request_type.get_stats, resp);
+        break;
+    case cormoran_kscan_diagnostics_Request_reset_stats_tag:
+        handle_reset_stats(&req.request_type.reset_stats, resp);
         break;
     default:
         LOG_WRN("Unsupported kscan_diagnostics request type: %d", req.which_request_type);
