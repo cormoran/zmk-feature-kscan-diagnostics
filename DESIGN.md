@@ -319,9 +319,37 @@ pre-commit run --all-files` + run the npm checks directly.
   native_sim test with scripted mock events incl. fast re-press bucket
   assertion. Deviations: Stats page shrank to 2 entries (not 3, see §6);
   see §8 for the `exit-after`/native_sim-timing pitfalls hit along the way.
-- **D — web UI** (§7): hooks, keyboard SVG + wiring overlay, wizard, diagnosis
-  engine + jest fixtures, stats table. Decide buf-vs-vendor for input-stream
-  proto here.
+- **D — web UI** (§7) — **done**: `useKscanDiagnostics`/`useOfficialKeymap`/
+  `useInputStream` hooks, `KeyboardView` (SVG-like absolute-positioned
+  keycap grid, rotation-aware, wiring-mode border overlay), `TestWizard`
+  (coverage → retest → chatter → report state machine), `DiagnosisEngine`
+  (`web/src/diagnosis/engine.ts`, all six §7 rules, jest-fixtured in
+  `web/test/diagnosis/`), `StatsTable` with CSV export, wired into `App.tsx`.
+  Deviations:
+  - **input-stream proto**: vendored a pinned copy under
+    `web/proto-external/zmk/input_stream/` (commit noted in the file header)
+    as a second `buf.gen.yaml` input, rather than pointing at a sibling
+    checkout path — keeps `npm run generate` reproducible when the sibling
+    module repo isn't cloned next to this one (web CI has no west
+    workspace).
+  - **`GpioPin` has no `kind` field** (only `GetGpioPins`' request has a
+    `kind` filter), so `useKscanDiagnostics` fetches GPIO lines once per
+    kind (ROW/COL/INPUT/OUTPUT/CHARLIE) instead of one unfiltered page, and
+    `KscanDevice.gpioLinesByKind` keeps them separated for
+    `resolveRowColLines`.
+  - **Pre-existing web build break fixed**: ts-proto's default `export enum`
+    output for this module's new `KscanDriverType`/`GpioLineKind` enums
+    trips `tsconfig.app.json`'s `erasableSyntaxOnly` (TS1294). Added
+    `buf.gen.yaml`'s `enumsAsLiterals=true`, the same fix already used by
+    `zmk-feature-watchdog`'s `IncidentType` enum. This broke `npm run build`
+    at the start of Phase D (before any Phase D code was added) and was
+    fixed as a minimal, in-scope correction.
+  - **GHOST rule** only fires when the wizard is given an explicit
+    `requestedPositions` set (so it can tell "unexpected" presses apart);
+    `TestWizard` always supplies one (`positionsUnderTest`), but a
+    DiagnosisEngine caller that omits it silently skips GHOST rather than
+    erroring — documented as a deliberate "opt-in" design in
+    `diagnosis/types.ts`, not a bug.
 - **E — hardware validation** (§8): mock build + direct build on the rig,
   record actual RPC transcripts into `docs/validation.md`.
 - **F — docs + PR**: README user guide (how to add the module + west.yml
