@@ -247,8 +247,13 @@ export interface UseKscanDiagnosticsReturn {
   error: string | null;
   /** (Re-)fetch the full topology. */
   loadTopology: () => Promise<void>;
-  /** (Re-)fetch stats for every position. */
-  loadStats: () => Promise<void>;
+  /**
+   * (Re-)fetch stats for every position; also returns the freshly-fetched
+   * map directly so callers (e.g. TestWizard's baseline/after snapshots)
+   * don't have to read back through `stats` state, which may still hold the
+   * previous value in the same render/closure.
+   */
+  loadStats: () => Promise<StatsByPosition>;
   /** Reset all firmware-side counters, then re-fetch stats. */
   resetStats: () => Promise<void>;
 }
@@ -283,13 +288,15 @@ export function useKscanDiagnostics(): UseKscanDiagnosticsReturn {
   }, [service]);
 
   const loadStats = useCallback(async () => {
-    if (!service) return;
+    if (!service) return new Map();
     setError(null);
     try {
       const s = await fetchStats(service);
       setStats(s);
+      return s;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
+      return new Map();
     }
   }, [service]);
 

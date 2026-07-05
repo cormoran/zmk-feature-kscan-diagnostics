@@ -95,6 +95,58 @@ export interface PositionStatsEntry {
 
 export type StatsByPosition = Map<number, PositionStatsEntry>;
 
+/** Diagnosis-engine-shaped wiring for one (row, col) cell — see diagnosis/types.ts's CellWiring. */
+export interface CellWiring {
+  position: number;
+  row: number;
+  column: number;
+  deviceType: KscanDriverType;
+  rowLine: GpioPin | null;
+  colLine: GpioPin | null;
+}
+
+/** Build the DiagnosisEngine's `CellWiring[]` input for every mapped position of a layout. */
+export function buildCellWiring(
+  topology: Topology,
+  layout: KscanLayout
+): CellWiring[] {
+  const cells: CellWiring[] = [];
+  for (let row = 0; row < layout.rows; row++) {
+    for (let col = 0; col < layout.columns; col++) {
+      const cellIndex = row * layout.columns + col;
+      const position = layout.positionMap[cellIndex];
+      if (position === null || position === undefined) continue;
+      const resolved = resolveDeviceForCell(topology, layout, row, col);
+      if (!resolved) {
+        cells.push({
+          position,
+          row,
+          column: col,
+          deviceType: KscanDriverType.UNKNOWN,
+          rowLine: null,
+          colLine: null,
+        });
+        continue;
+      }
+      const { device, localRow, localCol } = resolved;
+      const { rowLine, colLine } = resolveRowColLines(
+        device,
+        localRow,
+        localCol
+      );
+      cells.push({
+        position,
+        row,
+        column: col,
+        deviceType: device.type,
+        rowLine,
+        colLine,
+      });
+    }
+  }
+  return cells;
+}
+
 /**
  * Resolve which leaf device backs a (row, column) cell of a layout, and the
  * cell's coordinates in that device's own local (row, column) space.

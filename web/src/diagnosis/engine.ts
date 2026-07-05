@@ -67,7 +67,8 @@ function ruleLineFault(input: DiagnosisInput): Finding[] {
         summary: `${cells.length} keys on ${axis} ${axisValue} are all dead, while their ${axis === "row" ? "columns" : "rows"} work elsewhere`,
         action: `Check wire/solder on GPIO ${gpioLabel(line)} (${axis} ${axisValue})`,
         evidence: cells.map(
-          (c) => `position ${c.position} (row ${c.row}, col ${c.column}) never registered a press`
+          (c) =>
+            `position ${c.position} (row ${c.row}, col ${c.column}) never registered a press`
         ),
       });
     }
@@ -85,10 +86,16 @@ function ruleIsolatedKeyFault(input: DiagnosisInput): Finding[] {
   const dead = input.cells.filter((c) => isDead(c, input));
   for (const cell of dead) {
     const rowAliveElsewhere = input.cells.some(
-      (other) => other.row === cell.row && other.column !== cell.column && isAlive(other, input)
+      (other) =>
+        other.row === cell.row &&
+        other.column !== cell.column &&
+        isAlive(other, input)
     );
     const colAliveElsewhere = input.cells.some(
-      (other) => other.column === cell.column && other.row !== cell.row && isAlive(other, input)
+      (other) =>
+        other.column === cell.column &&
+        other.row !== cell.row &&
+        isAlive(other, input)
     );
     if (rowAliveElsewhere && colAliveElsewhere) {
       findings.push({
@@ -108,13 +115,15 @@ function ruleIsolatedKeyFault(input: DiagnosisInput): Finding[] {
   return findings;
 }
 
-const CHATTER_FIELD: Record<DiagnosisInput["chatterBucket"], keyof import("../kscanDiagnosticsTypes").PositionStatsEntry> =
-  {
-    lt5: "repressLt5",
-    lt10: "repressLt10",
-    lt20: "repressLt20",
-    lt50: "repressLt50",
-  };
+const CHATTER_FIELD: Record<
+  DiagnosisInput["chatterBucket"],
+  keyof import("../kscanDiagnosticsTypes").PositionStatsEntry
+> = {
+  lt5: "repressLt5",
+  lt10: "repressLt10",
+  lt20: "repressLt20",
+  lt50: "repressLt50",
+};
 
 /** CHATTER: repress_lt* count > 0 at the user-selected threshold bucket. */
 function ruleChatter(input: DiagnosisInput): Finding[] {
@@ -151,7 +160,9 @@ function ruleGhost(input: DiagnosisInput): Finding[] {
   const byPosition = new Map(input.cells.map((c) => [c.position, c]));
   // Reconstruct "currently held" sets by replaying press/release in order.
   const held = new Set<number>();
-  const sorted = [...input.eventLog].sort((a, b) => a.receivedAt - b.receivedAt);
+  const sorted = [...input.eventLog].sort(
+    (a, b) => a.receivedAt - b.receivedAt
+  );
   for (const ev of sorted) {
     if (ev.pressed) {
       const cell = byPosition.get(ev.position);
@@ -166,8 +177,10 @@ function ruleGhost(input: DiagnosisInput): Finding[] {
             if (b === a) continue;
             const cellB = byPosition.get(b);
             if (!cellB) continue;
-            const sameRowAsGhost = cellA.row === cell.row && cellB.column === cell.column;
-            const sameColAsGhost = cellB.row === cell.row && cellA.column === cell.column;
+            const sameRowAsGhost =
+              cellA.row === cell.row && cellB.column === cell.column;
+            const sameColAsGhost =
+              cellB.row === cell.row && cellA.column === cell.column;
             if (sameRowAsGhost || sameColAsGhost) {
               findings.push({
                 kind: "GHOST",
@@ -212,7 +225,8 @@ function ruleUnstableLine(input: DiagnosisInput): Finding[] {
   if (withCoverage.length === 0) return findings;
 
   const avgPressCount =
-    withCoverage.reduce((sum, x) => sum + (x.coverage?.pressCount ?? 0), 0) / withCoverage.length;
+    withCoverage.reduce((sum, x) => sum + (x.coverage?.pressCount ?? 0), 0) /
+    withCoverage.length;
   if (avgPressCount <= 0) return findings;
 
   for (const axis of ["row", "column"] as const) {
@@ -228,12 +242,15 @@ function ruleUnstableLine(input: DiagnosisInput): Finding[] {
       // "Intermittent": every position on the line was seen at least once
       // (so it's not a hard ROW_FAULT/COLUMN_FAULT) but the press count is
       // well below the board average for every one of them.
-      const allSeenAtLeastOnce = entries.every((e) => (e.coverage?.pressCount ?? 0) > 0);
+      const allSeenAtLeastOnce = entries.every(
+        (e) => (e.coverage?.pressCount ?? 0) > 0
+      );
       const allBelowAverage = entries.every(
         (e) => (e.coverage?.pressCount ?? 0) < avgPressCount * 0.5
       );
       if (allSeenAtLeastOnce && allBelowAverage) {
-        const line = axis === "row" ? entries[0].cell.rowLine : entries[0].cell.colLine;
+        const line =
+          axis === "row" ? entries[0].cell.rowLine : entries[0].cell.colLine;
         findings.push({
           kind: "UNSTABLE_LINE",
           confidence: "low",
@@ -257,7 +274,10 @@ function ruleUnstableLine(input: DiagnosisInput): Finding[] {
  * (wiring fault, chatter, ghost, unstable line) explaining it — points the
  * user at the keymap/behavior binding instead.
  */
-function ruleSoftwareSuspect(input: DiagnosisInput, priorFindings: Finding[]): Finding[] {
+function ruleSoftwareSuspect(
+  input: DiagnosisInput,
+  priorFindings: Finding[]
+): Finding[] {
   const findings: Finding[] = [];
   if (!input.userReportedPositions) return findings;
   const explainedPositions = new Set(priorFindings.flatMap((f) => f.positions));
@@ -269,13 +289,19 @@ function ruleSoftwareSuspect(input: DiagnosisInput, priorFindings: Finding[]): F
       positions: [pos],
       summary: `Position ${pos} was reported as misbehaving but no wiring fault or chatter explains it`,
       action: `Check the keymap/behavior binding for position ${pos} (layer/macro/combo config)`,
-      evidence: [`position ${pos}: no wiring fault, chatter, ghost, or unstable-line finding`],
+      evidence: [
+        `position ${pos}: no wiring fault, chatter, ghost, or unstable-line finding`,
+      ],
     });
   }
   return findings;
 }
 
-const CONFIDENCE_ORDER: Record<Finding["confidence"], number> = { high: 0, medium: 1, low: 2 };
+const CONFIDENCE_ORDER: Record<Finding["confidence"], number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
 
 export function diagnose(input: DiagnosisInput): Finding[] {
   const findings: Finding[] = [];
@@ -286,7 +312,9 @@ export function diagnose(input: DiagnosisInput): Finding[] {
   findings.push(...ruleUnstableLine(input));
   findings.push(...ruleSoftwareSuspect(input, findings));
 
-  return findings.sort((a, b) => CONFIDENCE_ORDER[a.confidence] - CONFIDENCE_ORDER[b.confidence]);
+  return findings.sort(
+    (a, b) => CONFIDENCE_ORDER[a.confidence] - CONFIDENCE_ORDER[b.confidence]
+  );
 }
 
 export {

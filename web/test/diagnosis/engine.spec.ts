@@ -89,7 +89,9 @@ describe("DiagnosisEngine", () => {
       const findings = diagnose(baseInput({ coverage }));
       // position (0,0) has neither row 0 nor column 0 alive elsewhere, so no
       // KEY_FAULT for it specifically.
-      const keyFault = findings.find((f) => f.kind === "KEY_FAULT" && f.positions.includes(0));
+      const keyFault = findings.find(
+        (f) => f.kind === "KEY_FAULT" && f.positions.includes(0)
+      );
       expect(keyFault).toBeUndefined();
     });
   });
@@ -97,7 +99,9 @@ describe("DiagnosisEngine", () => {
   describe("CHATTER", () => {
     it("flags a position with repress_lt* > 0 at the selected bucket", () => {
       const statsAfter = makeStatsMap([{ position: 4, repressLt50: 3 }]);
-      const findings = diagnose(baseInput({ statsAfter, chatterBucket: "lt50" }));
+      const findings = diagnose(
+        baseInput({ statsAfter, chatterBucket: "lt50" })
+      );
       const chatter = findings.find((f) => f.kind === "CHATTER");
       expect(chatter).toBeDefined();
       expect(chatter?.positions).toEqual([4]);
@@ -106,9 +110,15 @@ describe("DiagnosisEngine", () => {
     });
 
     it("uses medium confidence for a single low count and ignores buckets other than the selected one", () => {
-      const statsAfter = makeStatsMap([{ position: 2, repressLt50: 1, repressLt5: 9 }]);
-      const findings = diagnose(baseInput({ statsAfter, chatterBucket: "lt50" }));
-      const chatter = findings.find((f) => f.kind === "CHATTER" && f.positions.includes(2));
+      const statsAfter = makeStatsMap([
+        { position: 2, repressLt50: 1, repressLt5: 9 },
+      ]);
+      const findings = diagnose(
+        baseInput({ statsAfter, chatterBucket: "lt50" })
+      );
+      const chatter = findings.find(
+        (f) => f.kind === "CHATTER" && f.positions.includes(2)
+      );
       expect(chatter?.confidence).toBe("medium");
     });
 
@@ -124,9 +134,21 @@ describe("DiagnosisEngine", () => {
       // complete rectangles. We synthesize (1,0) as the unrequested press.
       const requested = new Set([positionFor(0, 0), positionFor(1, 1)]);
       const eventLog = [
-        makeEvent({ position: positionFor(0, 0), pressed: true, receivedAt: 0 }),
-        makeEvent({ position: positionFor(1, 1), pressed: true, receivedAt: 1 }),
-        makeEvent({ position: positionFor(1, 0), pressed: true, receivedAt: 2 }),
+        makeEvent({
+          position: positionFor(0, 0),
+          pressed: true,
+          receivedAt: 0,
+        }),
+        makeEvent({
+          position: positionFor(1, 1),
+          pressed: true,
+          receivedAt: 1,
+        }),
+        makeEvent({
+          position: positionFor(1, 0),
+          pressed: true,
+          receivedAt: 2,
+        }),
       ];
       const findings = diagnose(
         baseInput({ eventLog, requestedPositions: requested })
@@ -139,9 +161,21 @@ describe("DiagnosisEngine", () => {
     it("does not fire when the device is not a MATRIX driver", () => {
       const requested = new Set([positionFor(0, 0), positionFor(1, 1)]);
       const eventLog = [
-        makeEvent({ position: positionFor(0, 0), pressed: true, receivedAt: 0 }),
-        makeEvent({ position: positionFor(1, 1), pressed: true, receivedAt: 1 }),
-        makeEvent({ position: positionFor(1, 0), pressed: true, receivedAt: 2 }),
+        makeEvent({
+          position: positionFor(0, 0),
+          pressed: true,
+          receivedAt: 0,
+        }),
+        makeEvent({
+          position: positionFor(1, 1),
+          pressed: true,
+          receivedAt: 1,
+        }),
+        makeEvent({
+          position: positionFor(1, 0),
+          pressed: true,
+          receivedAt: 2,
+        }),
       ];
       const findings = diagnose(
         baseInput({
@@ -155,9 +189,21 @@ describe("DiagnosisEngine", () => {
 
     it("does not fire when requestedPositions is omitted", () => {
       const eventLog = [
-        makeEvent({ position: positionFor(0, 0), pressed: true, receivedAt: 0 }),
-        makeEvent({ position: positionFor(1, 1), pressed: true, receivedAt: 1 }),
-        makeEvent({ position: positionFor(1, 0), pressed: true, receivedAt: 2 }),
+        makeEvent({
+          position: positionFor(0, 0),
+          pressed: true,
+          receivedAt: 0,
+        }),
+        makeEvent({
+          position: positionFor(1, 1),
+          pressed: true,
+          receivedAt: 1,
+        }),
+        makeEvent({
+          position: positionFor(1, 0),
+          pressed: true,
+          receivedAt: 2,
+        }),
       ];
       const findings = diagnose(baseInput({ eventLog }));
       expect(findings.find((f) => f.kind === "GHOST")).toBeUndefined();
@@ -208,13 +254,17 @@ describe("DiagnosisEngine", () => {
           userReportedPositions: new Set([positionFor(1, 1)]),
         })
       );
-      expect(findings.find((f) => f.kind === "SOFTWARE_SUSPECT")).toBeUndefined();
+      expect(
+        findings.find((f) => f.kind === "SOFTWARE_SUSPECT")
+      ).toBeUndefined();
       expect(findings.find((f) => f.kind === "CHATTER")).toBeDefined();
     });
 
     it("does not fire when userReportedPositions is omitted", () => {
       const findings = diagnose(baseInput());
-      expect(findings.find((f) => f.kind === "SOFTWARE_SUSPECT")).toBeUndefined();
+      expect(
+        findings.find((f) => f.kind === "SOFTWARE_SUSPECT")
+      ).toBeUndefined();
     });
   });
 

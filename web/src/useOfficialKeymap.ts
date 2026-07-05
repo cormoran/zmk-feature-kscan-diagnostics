@@ -6,7 +6,10 @@
 import { useCallback, useContext, useState } from "react";
 import { call_rpc, MetaError } from "@zmkfirmware/zmk-studio-ts-client";
 import { ErrorConditions } from "@zmkfirmware/zmk-studio-ts-client/meta";
-import type { Keymap, PhysicalLayouts } from "@zmkfirmware/zmk-studio-ts-client/keymap";
+import type {
+  Keymap,
+  PhysicalLayouts,
+} from "@zmkfirmware/zmk-studio-ts-client/keymap";
 import { ZMKAppContext } from "@cormoran/zmk-studio-react-hook";
 
 export interface UseOfficialKeymapReturn {
@@ -23,7 +26,8 @@ export function useOfficialKeymap(): UseOfficialKeymapReturn {
   const zmkApp = useContext(ZMKAppContext);
   const connection = zmkApp?.state.connection ?? null;
 
-  const [physicalLayouts, setPhysicalLayouts] = useState<PhysicalLayouts | null>(null);
+  const [physicalLayouts, setPhysicalLayouts] =
+    useState<PhysicalLayouts | null>(null);
   const [keymap, setKeymap] = useState<Keymap | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [unlockRequired, setUnlockRequired] = useState(false);
@@ -46,7 +50,10 @@ export function useOfficialKeymap(): UseOfficialKeymapReturn {
         setKeymap(keymapResp.keymap.getKeymap);
       }
     } catch (e) {
-      if (e instanceof MetaError && e.condition === ErrorConditions.UNLOCK_REQUIRED) {
+      if (
+        e instanceof MetaError &&
+        e.condition === ErrorConditions.UNLOCK_REQUIRED
+      ) {
         setUnlockRequired(true);
       } else {
         setError(e instanceof Error ? e.message : "Unknown error");

@@ -7,6 +7,13 @@ import App from "../src/App";
 jest.mock("@zmkfirmware/zmk-studio-ts-client", () => ({
   create_rpc_connection: jest.fn(),
   call_rpc: jest.fn(),
+  MetaError: class MetaError extends Error {
+    condition: string;
+    constructor(condition: string) {
+      super(`MetaError: ${condition}`);
+      this.condition = condition;
+    }
+  },
 }));
 
 jest.mock("@zmkfirmware/zmk-studio-ts-client/transport/serial", () => ({
@@ -21,7 +28,11 @@ describe("App Component", () => {
       expect(
         screen.getByRole("heading", { name: /Kscan Diagnostics/i })
       ).toBeInTheDocument();
-      expect(screen.getByText(/Custom Studio RPC Demo/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Diagnose broken wires, bad solder joints, and switch chatter/i
+        )
+      ).toBeInTheDocument();
     });
 
     it("should render connection button when disconnected", () => {
@@ -46,11 +57,16 @@ describe("App Component", () => {
       mocks = setupZMKMocks();
     });
 
-    it("should connect to device when connect button is clicked", async () => {
+    it("should connect to device and warn when the subsystem is missing", async () => {
       mocks.mockSuccessfulConnection({
         deviceName: "Test Keyboard",
-        subsystems: ["cormoran__kscan_diagnostics"],
+        subsystems: [],
       });
+      // Every RPC call after the initial handshake (topology fetch, official
+      // keymap, input-stream) falls through to the default jest mock
+      // (resolves undefined) unless queued -- hooks must handle that
+      // gracefully rather than hang/crash the render.
+      mocks.call_rpc.mockResolvedValue({});
 
       const { connect: serial_connect } =
         await import("@zmkfirmware/zmk-studio-ts-client/transport/serial");
@@ -61,8 +77,7 @@ describe("App Component", () => {
       expect(screen.getByText(/Connect Serial/i)).toBeInTheDocument();
 
       const user = userEvent.setup();
-      const connectButton = screen.getByText(/Connect Serial/i);
-      await user.click(connectButton);
+      await user.click(screen.getByText(/Connect Serial/i));
 
       await waitFor(() => {
         expect(
@@ -71,7 +86,44 @@ describe("App Component", () => {
       });
 
       expect(screen.getByText(/Disconnect/i)).toBeInTheDocument();
-      expect(screen.getByText(/RPC Test/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Subsystem "cormoran__kscan_diagnostics" not found/i)
+      ).toBeInTheDocument();
+    });
+
+    it("shows the stats table and wizard entry point once the subsystem is present", async () => {
+      mocks.mockSuccessfulConnection({
+        deviceName: "Test Keyboard",
+        subsystems: ["cormoran__kscan_diagnostics"],
+      });
+      // GetInfo response with zero layouts/devices keeps the topology fetch
+      // trivially finished (template "zero-device rule", DESIGN.md SS4) so
+      // this smoke test doesn't need to model paged GpioPins/PositionMap.
+      mocks.call_rpc.mockResolvedValue({
+        custom: {
+          call: {
+            payload: undefined,
+          },
+        },
+      });
+
+      const { connect: serial_connect } =
+        await import("@zmkfirmware/zmk-studio-ts-client/transport/serial");
+      (serial_connect as jest.Mock).mockResolvedValue(mocks.mockTransport);
+
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByText(/Connect Serial/i));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Connected to: Test Keyboard/i)
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/^Stats$/i)).toBeInTheDocument();
+      });
     });
   });
 });

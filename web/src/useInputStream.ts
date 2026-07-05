@@ -10,7 +10,10 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { MetaError } from "@zmkfirmware/zmk-studio-ts-client";
 import { ErrorConditions } from "@zmkfirmware/zmk-studio-ts-client/meta";
 import type { CustomNotification } from "@zmkfirmware/zmk-studio-ts-client/custom";
-import { ZMKAppContext, ZMKCustomSubsystem } from "@cormoran/zmk-studio-react-hook";
+import {
+  ZMKAppContext,
+  ZMKCustomSubsystem,
+} from "@cormoran/zmk-studio-react-hook";
 import {
   Notification,
   Request,
@@ -54,7 +57,8 @@ export interface UseInputStreamReturn {
 export function useInputStream(): UseInputStreamReturn {
   const zmkApp = useContext(ZMKAppContext);
   const connection = zmkApp?.state.connection ?? null;
-  const subsystem = zmkApp?.findSubsystem(INPUT_STREAM_SUBSYSTEM_IDENTIFIER) ?? null;
+  const subsystem =
+    zmkApp?.findSubsystem(INPUT_STREAM_SUBSYSTEM_IDENTIFIER) ?? null;
 
   const [locked, setLocked] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -93,7 +97,10 @@ export function useInputStream(): UseInputStreamReturn {
         setError(null);
         return resp;
       } catch (e) {
-        if (e instanceof MetaError && e.condition === ErrorConditions.UNLOCK_REQUIRED) {
+        if (
+          e instanceof MetaError &&
+          e.condition === ErrorConditions.UNLOCK_REQUIRED
+        ) {
           setLocked(true);
         } else {
           setError(e instanceof Error ? e.message : "Unknown error");
@@ -121,7 +128,9 @@ export function useInputStream(): UseInputStreamReturn {
       const idx = subsystemIndexRef.current;
       if (!enabledRef.current || !conn || idx === null) return;
       const service = new ZMKCustomSubsystem(conn, idx);
-      const payload = Request.encode(Request.create({ disableStream: {} })).finish();
+      const payload = Request.encode(
+        Request.create({ disableStream: {} })
+      ).finish();
       void service.callRPC(payload);
     };
     window.addEventListener("beforeunload", handler);
@@ -137,13 +146,23 @@ export function useInputStream(): UseInputStreamReturn {
         try {
           const decoded = Notification.decode(notif.payload);
           if (decoded.keyEvent) {
-            const { position, pressed, behaviorId, param1, param2 } = decoded.keyEvent;
+            const { position, pressed, behaviorId, param1, param2 } =
+              decoded.keyEvent;
             setEvents((prev) => {
               const next: KeyEvent[] = [
-                { position, pressed, behaviorId, param1, param2, receivedAt: performance.now() },
+                {
+                  position,
+                  pressed,
+                  behaviorId,
+                  param1,
+                  param2,
+                  receivedAt: performance.now(),
+                },
                 ...prev,
               ];
-              return next.length > MAX_EVENT_LOG ? next.slice(0, MAX_EVENT_LOG) : next;
+              return next.length > MAX_EVENT_LOG
+                ? next.slice(0, MAX_EVENT_LOG)
+                : next;
             });
           }
           if (decoded.layerChange) {
