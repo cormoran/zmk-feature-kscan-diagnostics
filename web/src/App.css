@@ -81,3 +81,90 @@
 
 /* Default (non-wiring-mode) fill colors are set inline per KeyState so
    fixtures/snapshots don't depend on class-color mapping duplication. */
+
+/* ── StatsTable ───────────────────────────────────────────────────────── */
+.stats-table-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.stats-table-scroll {
+  overflow-x: auto;
+}
+
+.stats-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.stats-table th,
+.stats-table td {
+  border: 1px solid #ddd;
+  padding: 0.25rem 0.5rem;
+  text-align: right;
+}
+
+.stats-table th:first-child,
+.stats-table td:first-child {
+  text-align: left;
+}
+
+.hint-text {
+  color: #666;
+  font-style: italic;
+}
+
+.btn-danger {
+  background: #fee2e2;
+  border: 1px solid #f87171;
+}
+
+/* ── TestWizard ───────────────────────────────────────────────────────── */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.findings-list {
+  list-style: none;
+  padding: 0;
+  width: 100%;
+}
+
+.finding {
+  border: 1px solid #ccc;
+  border-left-width: 6px;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.finding-high {
+  border-left-color: #ef4444;
+}
+
+.finding-medium {
+  border-left-color: #f59e0b;
+}
+
+.finding-low {
+  border-left-color: #9ca3af;
+}
+
+.finding-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+}
+
+.finding-summary {
+  margin: 0.25rem 0;
+}
+
+.finding-action {
+  font-weight: 600;
+}
