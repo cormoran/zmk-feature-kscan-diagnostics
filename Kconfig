@@ -5,6 +5,22 @@ if ZMK_KSCAN_DIAGNOSTICS
 
 config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
     bool "Enable Kscan Diagnostics custom Studio RPC"
+    default y
     depends on ZMK_STUDIO
+
+config ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS
+    int "Maximum number of keymap positions tracked by kscan diagnostics"
+    default 128
+
+config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST
+    bool "Enable kscan diagnostics Studio RPC self-test (native_sim only)"
+    depends on ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
+    help
+      Adds test-only init logic exercising
+      src/studio/kscan_diagnostics_handler.c's
+      GetInfo/GetLayout/GetDevice/GetGpioPins/GetPositionMap handlers
+      directly (no transport). Needs CONFIG_ZMK_STUDIO, which in turn needs
+      a physical-layout devicetree (see tests/studio/ vs tests/test/). Not
+      for production builds.
 
 endif

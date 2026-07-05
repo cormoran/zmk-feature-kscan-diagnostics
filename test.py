@@ -100,6 +100,43 @@ class WestCommandsTests(unittest.TestCase):
                     ],
                     device=[],
                 ),
+                "kscan_diagnostics_board_matrix": ConfigAndDeviceTree(
+                    config=[
+                        "CONFIG_ZMK_STUDIO=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y",
+                        "CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256",
+                    ],
+                    device=[
+                        "DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_matrix",
+                        NotFound("DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_direct"),
+                    ],
+                ),
+                "kscan_diagnostics_board_composite": ConfigAndDeviceTree(
+                    config=[
+                        "CONFIG_ZMK_STUDIO=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y",
+                        "CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256",
+                    ],
+                    device=[
+                        "DT_COMPAT_HAS_OKAY_zmk_kscan_composite",
+                        "DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_direct",
+                        "DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_matrix",
+                    ],
+                ),
+                "kscan_diagnostics_board_charlieplex_demux": ConfigAndDeviceTree(
+                    config=[
+                        "CONFIG_ZMK_STUDIO=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y",
+                        "CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256",
+                    ],
+                    device=[
+                        "DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_charlieplex",
+                        "DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_demux",
+                    ],
+                ),
             }
         )
 

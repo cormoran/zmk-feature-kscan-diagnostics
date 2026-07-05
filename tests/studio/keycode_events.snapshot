@@ -1,2 +1,8 @@
 cormoran__kscan_diagnostics, Security: Unsecured
 cormoran_custom_settings, Security: Unsecured
+PASS: kscan_diagnostics_rpc_get_info
+PASS: kscan_diagnostics_rpc_get_layout
+PASS: kscan_diagnostics_rpc_get_device
+PASS: kscan_diagnostics_rpc_get_gpio_pins_empty
+PASS: kscan_diagnostics_rpc_get_position_map
+PASS: kscan_diagnostics_rpc_unknown_index_errors

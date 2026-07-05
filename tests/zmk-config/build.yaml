@@ -6,7 +6,9 @@ include:
   - artifact: kscan_diagnostics_board_with_rpc
     board: xiao_ble//zmk
     shield: tester_xiao
-    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y
+    # CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256: see the BUILD_ASSERT arithmetic
+    # comment in src/studio/kscan_diagnostics_handler.c.
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
     snippet: studio-rpc-usb-uart
 
   - artifact: kscan_diagnostics_board_without_rpc
@@ -17,5 +19,29 @@ include:
   - artifact: custom_settings_board
     board: xiao_ble//zmk
     shield: tester_xiao
-    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_CUSTOM_SETTINGS=y -DCONFIG_ZMK_CUSTOM_SETTINGS_STUDIO_RPC=y
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_CUSTOM_SETTINGS=y -DCONFIG_ZMK_CUSTOM_SETTINGS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
     snippet: studio-rpc-usb-uart
+
+  - artifact: kscan_diagnostics_board_matrix
+    board: xiao_ble//zmk
+    shield: tester_xiao
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
+    snippets:
+      - studio-rpc-usb-uart
+      - diag-matrix
+
+  - artifact: kscan_diagnostics_board_composite
+    board: xiao_ble//zmk
+    shield: tester_xiao
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
+    snippets:
+      - studio-rpc-usb-uart
+      - diag-composite
+
+  - artifact: kscan_diagnostics_board_charlieplex_demux
+    board: xiao_ble//zmk
+    shield: tester_xiao
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
+    snippets:
+      - studio-rpc-usb-uart
+      - diag-charlieplex-demux

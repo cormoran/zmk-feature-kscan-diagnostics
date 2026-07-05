@@ -178,7 +178,7 @@ field gets a `.options` max_size.**
 | `GetInfo{}` | `Info{proto_version=1, layout_count, selected_layout, device_count, stats_enabled, max_positions, uptime_ms}` | ~30 B |
 | `GetLayout{layout_index}` | `Layout{layout_index, display_name(≤24), rows, columns, key_count, device_indices[≤4] (resolved leaf devices + their offsets: repeated LayoutDevice{leaf_index,row_offset,col_offset})}` | ~60 B |
 | `GetDevice{device_index}` | `Device{device_index, node_name(≤24), type, rows, columns, inputs, debounce_press_ms, debounce_release_ms, debounce_scan_period_ms, poll_period_ms, diode_row2col, toggle_mode}` | ~70 B |
-| `GetGpioPins{device_index, kind, offset}` | `GpioPins{total, offset, pins[≤6]{index, port(≤12), pin, active_low, dt_flags}}` | 6×~22 B ≈ 150 B |
+| `GetGpioPins{device_index, kind, offset}` | `GpioPins{total, offset, pins[≤4]{index, port(≤12), pin, active_low, dt_flags}}` | 4×~41 B ≈ 180 B (Phase B measured this against TX=256 and shrank the page from the originally-planned 6 to 4 to leave the required 64 B framing margin — see src/studio/kscan_diagnostics_handler.c) |
 | `GetPositionMap{layout_index, offset}` | `PositionMap{total, offset, cells[≤24]}` — row-major over rows×cols, value = position+1, 0 = unmapped | ≤24×5 B ≈ 130 B |
 | `GetStats{offset}` | `Stats{total, offset, entries[≤3] PositionStats{position, presses, releases, min_press_duration_ms, min_repress_gap_ms, repress_lt5/lt10/lt20/lt50, last_source}}` | 3×~50 B ≈ 160 B (largest → sizes the TX assert) |
 | `ResetStats{}` | `Ok{}` | |
