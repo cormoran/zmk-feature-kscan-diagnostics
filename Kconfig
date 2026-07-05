@@ -23,4 +23,18 @@ config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST
       a physical-layout devicetree (see tests/studio/ vs tests/test/). Not
       for production builds.
 
+config ZMK_KSCAN_DIAGNOSTICS_MOCK_TIMING_TEST
+    bool "Enable zmk,kscan-mock timing-model self-test (native_sim only)"
+    help
+      Adds test-only init logic (src/test/kscan_mock_timing_test.c) that pins
+      down zmk,kscan-mock's real event-scheduling timing via
+      src/stats.c's counters (no Studio/RPC dependency): the mock's
+      `events` DT array is one-event-behind (events[0]'s delay is consumed
+      twice, every other events[i]'s delay controls the wait before event
+      i+1, and the last event's own delay is never consumed -- see
+      tests/zmk-config/snippets/diag-hw-mock/diag-hw-mock.overlay's header
+      comment and docs/validation.md for the full derivation, discovered
+      during Phase E hardware validation). See tests/mock-timing/. Not for
+      production builds.
+
 endif
