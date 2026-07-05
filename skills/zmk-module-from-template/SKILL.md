@@ -15,7 +15,7 @@ The bootstrap operation is intentionally scripted because GitHub repository crea
 2. Confirm or infer that GitHub CLI `gh` and SSH Git access are available.
 3. Run `scripts/bootstrap_zmk_module.py` from this skill. Prefer `--dry-run` first when the target repo name or destination is not obvious.
 4. Move the working directory to the newly cloned repository.
-5. Read the new repository's `AGENTS.md` and complete its Initialization section for the requested module.
+5. Read the new repository's `AGENTS.md` and complete its Initialization section for the requested module. The placeholder replacement itself is scripted: run `python3 scripts/init_module.py --namespace <author> --module <feature>` inside the new repository, fix any leftover it reports (re-check with `--verify-only`), then finish the manual steps it prints (README rewrite, running the firmware and web test suites).
 6. Remove only the Initialization section from the new repository's `AGENTS.md` after the template placeholders are fully replaced. Do not delete this reusable skill.
 7. Follow the repository's development rules: commit at milestones, run required checks, create a PR to origin when origin is cormoran's repository, monitor CI, and fix failures or merge conflicts.
 

@@ -51,6 +51,17 @@ repos:
         files: ^web/
         pass_filenames: false
 
+  # Template placeholder guard: no-op while AGENTS.md still contains the
+  # Initialization section; afterwards fails on any leftover placeholder.
+  - repo: local
+    hooks:
+      - id: check-template-placeholders
+        name: check template placeholders
+        entry: python3 scripts/check_placeholders.py
+        language: system
+        always_run: true
+        pass_filenames: false
+
   # ZMK module: Python tests
   - repo: local
     hooks:

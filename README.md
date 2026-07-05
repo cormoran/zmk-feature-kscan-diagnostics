@@ -78,6 +78,18 @@ See [web/README.md](./web/README.md) for web UI development instructions.
 
 ## Module Development Guide
 
+### Initialize from template
+
+Right after creating a repository from this template, run the initialization
+script and follow the checklist in [AGENTS.md](./AGENTS.md):
+
+```bash
+python3 scripts/init_module.py --namespace <your-github-name> --module <feature-name>
+```
+
+It replaces every template placeholder (identifiers, paths, URLs, artifact
+names) and verifies nothing is left (`--verify-only` re-checks at any time).
+
 ### Setup for running test
 
 #### Option0: Dev container (recommended)
