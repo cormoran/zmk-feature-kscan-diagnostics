@@ -1,0 +1,4 @@
+# Vendored copy — DO NOT EDIT BY HAND. See input_stream.proto header for
+# source/pin/rationale. This file is not used by buf/ts_proto generation
+# (nanopb-only), kept alongside the .proto for reference/re-sync purposes.
+zmk.input_stream.ErrorResponse.message   max_size:64

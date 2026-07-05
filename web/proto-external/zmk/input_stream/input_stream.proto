@@ -1,0 +1,61 @@
+// Vendored copy — DO NOT EDIT BY HAND.
+//
+// Source: https://github.com/cormoran/zmk-feature-input-stream
+//         proto/zmk/input_stream/input_stream.proto
+// Pinned commit: 0430fc89db8b3d035fd9c645ce008f9280cbd2cb
+//
+// Rationale (DESIGN.md SS7): this web app's `useInputStream` hook needs
+// ts-proto types for zmk-feature-input-stream's custom RPC subsystem, but
+// there is no west/npm dependency mechanism for a sibling ZMK module's proto,
+// and `web/buf.gen.yaml` must stay reproducible without assuming a sibling
+// checkout exists next to this repo (web CI runs without a west workspace —
+// see skills/zmk-module-dev/SKILL.md's "Web" pitfall). So this file is a
+// pinned vendored copy, not a `buf.gen.yaml` input pointed at
+// `../../zmk-feature-input-stream/proto`. Re-sync manually if input-stream's
+// proto changes (e.g. the backlogged timestamp_ms/seq fields, DESIGN.md SS9).
+
+syntax = "proto3";
+
+package zmk.input_stream;
+
+message EnableStreamRequest {}
+
+message DisableStreamRequest {}
+
+message Request {
+    oneof request_type {
+        EnableStreamRequest enable_stream = 1;
+        DisableStreamRequest disable_stream = 2;
+    }
+}
+
+message ErrorResponse { string message = 1; }
+
+message OkResponse {}
+
+message Response {
+    oneof response_type {
+        ErrorResponse error = 1;
+        OkResponse ok = 2;
+    }
+}
+
+// Sent when a key is physically pressed or released.
+// behavior_id/param1/param2 come from the active-layer binding at that position.
+message KeyEventNotification {
+    uint32 position = 1;
+    bool pressed = 2;
+    uint32 behavior_id = 3;
+    uint32 param1 = 4;
+    uint32 param2 = 5;
+}
+
+// Sent whenever the highest-active-layer index changes.
+message LayerChangeNotification { uint32 layer_index = 1; }
+
+message Notification {
+    oneof notification_type {
+        KeyEventNotification key_event = 1;
+        LayerChangeNotification layer_change = 2;
+    }
+}
