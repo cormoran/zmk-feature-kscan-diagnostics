@@ -1,10 +1,10 @@
-config ZMK_TEMPLATE_FEATURE
-    bool "Enable template feature"
+config ZMK_KSCAN_DIAGNOSTICS
+    bool "Enable Kscan Diagnostics feature"
 
-if ZMK_TEMPLATE_FEATURE
+if ZMK_KSCAN_DIAGNOSTICS
 
-config ZMK_TEMPLATE_FEATURE_STUDIO_RPC
-    bool "Enable template feature custom Studio RPC"
+config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
+    bool "Enable Kscan Diagnostics custom Studio RPC"
     depends on ZMK_STUDIO
 
 endif

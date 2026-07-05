@@ -1,22 +1,25 @@
-# cormoran's ZMK Module Template for ZMK (with Custom Studio RPC)
+# zmk-feature-kscan-diagnostics
 
 ![ZMK Version](https://img.shields.io/badge/ZMK-master-blue)
-[![Test](https://github.com/cormoran/zmk-module-template/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-module-template/actions/workflows/zmk-module.yml) [![Devcontainer](https://github.com/cormoran/zmk-module-template/actions/workflows/devcontainer.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-module-template/actions/workflows/devcontainer.yml)
+[![Test](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/zmk-module.yml) [![Devcontainer](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/devcontainer.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-feature-kscan-diagnostics/actions/workflows/devcontainer.yml)
 
-This repository contains a template for a ZMK module with Web UI using the **unofficial** custom ZMK Studio RPC protocol.
+ZMK module for diagnosing keyscan (kscan) hardware problems — broken wires,
+bad solder joints on key sockets, switch chatter — from a web UI over ZMK
+Studio custom RPC. Firmware collects kscan topology and events; the web page
+visualizes key presses on the keyboard layout and estimates the root cause.
 
-It's extended from ZMK official template with [zmk-west-commands](https://github.com/cormoran/zmk-west-commands), test code template, coding agent support, and custom Studio RPC protocol support.
+This module uses the **unofficial** custom ZMK Studio RPC protocol.
 
 ## Summary
 
-This template includes:
+This module includes:
 
-- **Firmware**: Sample custom Studio RPC handler (`src/studio/template_handler.c`)
-- **Protocol**: Protobuf definition (`proto/your-name/template/template.proto`)
+- **Firmware**: Custom Studio RPC handler (`src/studio/kscan_diagnostics_handler.c`)
+- **Protocol**: Protobuf definition (`proto/cormoran/kscan-diagnostics/kscan_diagnostics.proto`)
 - **Web UI**: React + TypeScript app (`web/`) using [@cormoran/zmk-studio-react-hook](https://github.com/cormoran/react-zmk-studio)
 - **Tests**: Firmware unit tests (`tests/studio/`) and build tests (`tests/zmk-config/`)
 
-Read through the [ZMK Module Creation](https://zmk.dev/docs/development/module-creation) page for details on how to configure this template.
+Detailed usage docs are TODO — the feature is still being implemented.
 
 ## More Info
 
@@ -34,7 +37,7 @@ For more info on modules, you can read through through the [Zephyr modules page]
            url-base: https://github.com/cormoran
        projects:
            ...
-           - name: zmk-module-template
+           - name: zmk-feature-kscan-diagnostics
            remote: cormoran
            revision: main+custom-studio-protocol # or latest commit hash
            import: true
@@ -50,21 +53,23 @@ For more info on modules, you can read through through the [Zephyr modules page]
 2. Enable flags in your `config/<shield>.conf`
 
    ```conf
-   CONFIG_ZMK_TEMPLATE_FEATURE=y
+   CONFIG_ZMK_KSCAN_DIAGNOSTICS=y
 
    # Optionally enable custom Studio RPC
    CONFIG_ZMK_STUDIO=y
-   CONFIG_ZMK_TEMPLATE_FEATURE_STUDIO_RPC=y
+   CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y
    CONFIG_ZMK_CUSTOM_SETTINGS=y
    CONFIG_ZMK_CUSTOM_SETTINGS_STUDIO_RPC=y
    CONFIG_ZMK_STUDIO_RPC_RX_BUF_SIZE=128
    CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE=2048
    ```
 
-3. Implement your custom protocol by editing:
-   - `proto/your-name/template/template.proto` — message types
-   - `src/studio/template_handler.c` — firmware RPC handler
-   - `web/src/App.tsx` — web UI
+3. TODO: kscan topology collection, the diagnostics Studio RPC surface, and
+   the web UI are not implemented yet -- this module is currently just the
+   template scaffold. For now see:
+   - `proto/cormoran/kscan-diagnostics/kscan_diagnostics.proto` — message types (placeholder)
+   - `src/studio/kscan_diagnostics_handler.c` — firmware RPC handler (placeholder)
+   - `web/src/App.tsx` — web UI (placeholder)
 
 ### Web UI
 
@@ -77,18 +82,6 @@ See [web/README.md](./web/README.md) for web UI development instructions.
 **Cloudflare Workers (PR previews)**: Configure `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets.
 
 ## Module Development Guide
-
-### Initialize from template
-
-Right after creating a repository from this template, run the initialization
-script and follow the checklist in [AGENTS.md](./AGENTS.md):
-
-```bash
-python3 scripts/init_module.py --namespace <your-github-name> --module <feature-name>
-```
-
-It replaces every template placeholder (identifiers, paths, URLs, artifact
-names) and verifies nothing is left (`--verify-only` re-checks at any time).
 
 ### Setup for running test
 
