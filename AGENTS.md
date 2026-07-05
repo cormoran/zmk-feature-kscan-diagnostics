@@ -35,6 +35,10 @@ Then, in order:
 
 ## Dev Rules
 
+- When designing a new module or a major feature (writing DESIGN.md), read
+  `skills/zmk-module-design/SKILL.md` first. It condenses the RPC, settings,
+  and web API surfaces and constraints, so do not read dependency sources
+  for design work.
 - Before writing or modifying proto, firmware, web, or test code, read
   `skills/zmk-module-dev/SKILL.md`. It has the implementation recipe
   (proto → firmware handler → web UI → tests, one small end-to-end slice at
