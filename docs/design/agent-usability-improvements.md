@@ -72,11 +72,14 @@ from underspecified situations. The template can compensate structurally:
    message that names the file/line and the command that repairs it. A weak
    model recovers well from a specific error; it recovers badly from silent
    corruption discovered three phases later.
-4. **All needed knowledge in-repo, adjacent to where it is needed.**
-   Pitfalls belong in AGENTS.md (or headers next to the code they concern),
-   phrased as short imperative rules ("never X, do Y instead"), not as war
-   stories. Knowledge that lives in an external workspace does not exist for
-   an agent cloning the repo.
+4. **All needed knowledge in-repo, loaded when it is needed.**
+   Pitfalls belong in the repository, phrased as short imperative rules
+   ("never X, do Y instead"), not as war stories — knowledge in an external
+   workspace does not exist for an agent cloning the repo. But AGENTS.md
+   itself stays short: it is always in context, so it carries only the core
+   rules plus mandatory pointers, while task-specific detail lives in skills
+   (`skills/zmk-module-dev/`) read at the moment they apply. This both saves
+   context for weak models and keeps the rules adjacent to the task.
 5. **Small end-to-end slices with a fixed order.** "proto → firmware → web →
    tests, one request/response pair at a time, never proceed on red" bounds
    the blast radius of any single mistake and keeps the working set small
@@ -93,8 +96,8 @@ from underspecified situations. The template can compensate structurally:
 |---|--------|-----------|
 | P0-1 | `scripts/init_module.py`: one-command initialization. Rewrites all placeholder identifiers, paths, URLs (including the two previously undocumented ones: subsystem UI URL, vite `base`), renames the proto/handler files, then self-verifies and prints file:line for anything left. `--verify-only` re-checks anytime; `--dry-run` previews. | 1, 2, 6 |
 | P0-2 | `scripts/check_placeholders.py` wired into pre-commit. No-op while the repo is still the pristine template (detected by the AGENTS.md Initialization section); once initialized, any surviving placeholder fails the commit with a file:line listing. | 3 |
-| P0-3 | AGENTS.md restructured: scripted init with explicit manual follow-ups; an "Implementation recipe" giving the per-slice order with a Done-when command for each step; consistency rule for `build.yaml`/`test.py`. | 2, 5 |
-| P0-4 | Knowledge upstreamed into AGENTS.md Pitfalls: RPC buffer sizes + `BUILD_ASSERT` guidance, static response buffer lifetime, zero-device/native_sim Kconfig pattern, settings boot ordering, `RANGE_INT32` workaround, `RC()` clash, tester_xiao pins, snippet-based test wiring, and the `web/proto/` vendoring rule for dependency protos. | 4 |
+| P0-3 | AGENTS.md kept short (init flow + core rules + commands); the detail moved to `skills/zmk-module-dev/SKILL.md`: an "Implementation recipe" giving the per-slice order with a Done-when command for each step, plus the consistency rule for `build.yaml`/`test.py`. AGENTS.md points to the skill with a read-before-coding rule. | 2, 5 |
+| P0-4 | Knowledge upstreamed into `skills/zmk-module-dev/SKILL.md` Pitfalls: RPC buffer sizes + `BUILD_ASSERT` guidance, static response buffer lifetime, zero-device/native_sim Kconfig pattern, settings boot ordering, `RANGE_INT32` workaround, `RC()` clash, tester_xiao pins, snippet-based test wiring, and the `web/proto/` vendoring rule for dependency protos. | 4 |
 
 ### P1 — proposed next
 
