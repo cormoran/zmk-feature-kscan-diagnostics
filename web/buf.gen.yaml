@@ -1,6 +1,11 @@
 version: v2
 inputs:
   - directory: ../proto
+  # zmk-feature-input-stream's proto, vendored (not a west/sibling-checkout
+  # path) so `buf generate` stays reproducible without a west workspace —
+  # see proto-external/zmk/input_stream/input_stream.proto's header comment
+  # and skills/zmk-module-dev/SKILL.md's "Web" pitfall for the rationale.
+  - directory: proto-external
 plugins:
   - local: protoc-gen-ts_proto
     opt:
@@ -9,4 +14,10 @@ plugins:
       - outputClientImpl=false
       - useExactTypes=false
       - esModuleInterop=true
+      # This module's proto (KscanDriverType, GpioLineKind) has enums.
+      # ts-proto's default `export enum` output fails tsconfig.app.json's
+      # erasableSyntaxOnly (TS1294): enum declarations are not erasable
+      # syntax. enumsAsLiterals emits an `as const` object + type alias
+      # instead, which is (same fix as zmk-feature-watchdog's IncidentType).
+      - enumsAsLiterals=true
     out: src/proto

@@ -1,0 +1,51 @@
+/*
+ * Regression fixture for src/test/kscan_mock_timing_test.c (see that file and
+ * docs/validation.md for the full story): pins down zmk,kscan-mock's real
+ * event-scheduling timing, discovered the hard way during Phase E hardware
+ * validation. `exit-after` is deleted so the test process controls its own
+ * lifetime (same pitfall/fix as tests/test.dtsi -- run-test.sh has no
+ * timeout of its own, so something must call exit()).
+ *
+ * Event script (DT delay values only, encoding in
+ * dt-bindings/zmk/kscan_mock.h): kscan_mock_work_handler fires
+ * events[event_index] and calls kscan_mock_schedule_next_event(dev) *before*
+ * incrementing event_index, so that call re-reads the just-fired event's own
+ * delay to arm the timer for the *next* event. Net effect: events[0]'s delay
+ * is consumed twice (T[0] itself, and again for T[1]-T[0]), and
+ * events[i].delay for i>=1 controls the wait before event i+1 (not event i).
+ * With the delays below (50, 10, 40, 0 -- the last one is never consumed,
+ * value irrelevant), the *actual* firing times are
+ * T = [50, 100, 110, 150], i.e. hold1=50ms, repress_gap=10ms, hold2=40ms.
+ * A "naive" (wrong) reading of the DT array where each event's own delay is
+ * the wait before *that* event would instead predict T = [50, 60, 100, 100]
+ * (hold1=10ms, repress_gap=40ms, hold2=0ms) -- the two models are
+ * distinguishable, which is exactly what the test asserts against.
+ */
+#include <dt-bindings/zmk/keys.h>
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/kscan_mock.h>
+
+/ {
+	keymap {
+		compatible = "zmk,keymap";
+
+		default_layer {
+			bindings = <
+			&kp A
+			&kp B
+			&kp C
+			&kp D
+			>;
+		};
+	};
+};
+
+&kscan {
+	/delete-property/ exit-after;
+	events = <
+	ZMK_MOCK_PRESS(0,0,50)
+	ZMK_MOCK_RELEASE(0,0,10)
+	ZMK_MOCK_PRESS(0,0,40)
+	ZMK_MOCK_RELEASE(0,0,0)
+	>;
+};

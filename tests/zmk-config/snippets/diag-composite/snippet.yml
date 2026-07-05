@@ -1,0 +1,3 @@
+name: diag-composite
+append:
+  EXTRA_DTC_OVERLAY_FILE: diag-composite.overlay

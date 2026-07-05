@@ -1,0 +1,11 @@
+# Nanopb options file for kscan_diagnostics.proto
+# This defines max sizes for string/bytes fields and repeated field counts.
+
+cormoran.kscan_diagnostics.Layout.display_name         max_size:24
+cormoran.kscan_diagnostics.Layout.device_indices        max_count:4
+cormoran.kscan_diagnostics.Device.node_name             max_size:32
+cormoran.kscan_diagnostics.GpioPin.port                 max_size:12
+cormoran.kscan_diagnostics.GpioPins.pins                max_count:4
+cormoran.kscan_diagnostics.PositionMap.cells            max_count:24
+cormoran.kscan_diagnostics.Error.message                max_size:48
+cormoran.kscan_diagnostics.Stats.entries                max_count:2

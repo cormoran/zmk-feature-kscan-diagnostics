@@ -1,0 +1,3 @@
+name: diag-hw-mock
+append:
+  EXTRA_DTC_OVERLAY_FILE: diag-hw-mock.overlay

@@ -1,5 +1,23 @@
 #include <physical_layouts.dtsi>
 #include <dt-bindings/zmk/matrix_transform.h>
+
+/*
+ * native_sim_zmk_test_mock.dts (the board backing tests/studio/) sets
+ * `exit-after` on &kscan, which calls exit(0) from the kscan workqueue
+ * shortly (one extra scheduled work item, ~last-event-delay-ms later) after
+ * the scripted event list is exhausted -- see kscan_mock.c's
+ * kscan_mock_schedule_next_event. That races against the stats test's
+ * k_sleep(), which needs the process to stay alive well past the last
+ * scripted event to assert stats via RPC. Delete the property here so only
+ * src/test/kscan_diagnostics_rpc_test.c's own explicit exit(0) (after all
+ * assertions finish) terminates the process -- run-test.sh has no timeout of
+ * its own and simply waits for zmk.exe to exit, so *something* must call
+ * exit() eventually.
+ */
+&kscan {
+	/delete-property/ exit-after;
+};
+
 / {
 	physical_layout: physical_layout {
 		compatible = "zmk,physical-layout";
@@ -42,10 +60,27 @@
 };
 
 &kscan {
+	/* Scripted for src/test/kscan_diagnostics_rpc_test.c's stats assertions
+	 * (DESIGN.md SS8): position 0 (RC(0,0)) gets a normal press/release pair
+	 * (20ms nominal hold) followed by a fast re-press whose release->press
+	 * gap (30ms nominal) targets the "<50ms" chatter bucket, the widest
+	 * bucket band, to absorb the scheduling jitter
+	 * CONFIG_NATIVE_SIM_SLOWDOWN_TO_REAL_TIME=y introduces (this is a real
+	 * wall-clock-timed simulation, not instant -- observed jitter has been up
+	 * to ~6ms per hop in practice, so narrow buckets like "<20ms" are not
+	 * reliable to target here; the test asserts tolerant ranges, not exact
+	 * ms). Position 1 (RC(0,1)) gets a single press/release pair with no
+	 * repress, to prove counters are tracked independently per position. The
+	 * `msec` argument of ZMK_MOCK_PRESS/RELEASE is the delay *before* that
+	 * event fires (relative to the previous scheduled event), not an
+	 * absolute timestamp -- see dependencies/zmk/.../drivers/kscan/kscan_mock.c.
+	 */
 	events = <
-	ZMK_MOCK_PRESS(0,0,10)
-	ZMK_MOCK_RELEASE(0,0,10)
-	ZMK_MOCK_PRESS(0,0,10)
-	ZMK_MOCK_RELEASE(0,0,10)
+	ZMK_MOCK_PRESS(0,0,20)
+	ZMK_MOCK_RELEASE(0,0,20)
+	ZMK_MOCK_PRESS(0,0,30)
+	ZMK_MOCK_RELEASE(0,0,20)
+	ZMK_MOCK_PRESS(0,1,20)
+	ZMK_MOCK_RELEASE(0,1,20)
 	>;
 };

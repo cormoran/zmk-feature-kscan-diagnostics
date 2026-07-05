@@ -1,10 +1,40 @@
-config ZMK_TEMPLATE_FEATURE
-    bool "Enable template feature"
+config ZMK_KSCAN_DIAGNOSTICS
+    bool "Enable Kscan Diagnostics feature"
 
-if ZMK_TEMPLATE_FEATURE
+if ZMK_KSCAN_DIAGNOSTICS
 
-config ZMK_TEMPLATE_FEATURE_STUDIO_RPC
-    bool "Enable template feature custom Studio RPC"
+config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
+    bool "Enable Kscan Diagnostics custom Studio RPC"
+    default y
     depends on ZMK_STUDIO
+
+config ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS
+    int "Maximum number of keymap positions tracked by kscan diagnostics"
+    default 128
+
+config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST
+    bool "Enable kscan diagnostics Studio RPC self-test (native_sim only)"
+    depends on ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
+    help
+      Adds test-only init logic exercising
+      src/studio/kscan_diagnostics_handler.c's
+      GetInfo/GetLayout/GetDevice/GetGpioPins/GetPositionMap handlers
+      directly (no transport). Needs CONFIG_ZMK_STUDIO, which in turn needs
+      a physical-layout devicetree (see tests/studio/ vs tests/test/). Not
+      for production builds.
+
+config ZMK_KSCAN_DIAGNOSTICS_MOCK_TIMING_TEST
+    bool "Enable zmk,kscan-mock timing-model self-test (native_sim only)"
+    help
+      Adds test-only init logic (src/test/kscan_mock_timing_test.c) that pins
+      down zmk,kscan-mock's real event-scheduling timing via
+      src/stats.c's counters (no Studio/RPC dependency): the mock's
+      `events` DT array is one-event-behind (events[0]'s delay is consumed
+      twice, every other events[i]'s delay controls the wait before event
+      i+1, and the last event's own delay is never consumed -- see
+      tests/zmk-config/snippets/diag-hw-mock/diag-hw-mock.overlay's header
+      comment and docs/validation.md for the full derivation, discovered
+      during Phase E hardware validation). See tests/mock-timing/. Not for
+      production builds.
 
 endif

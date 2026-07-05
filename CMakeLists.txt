@@ -1,10 +1,19 @@
 zephyr_include_directories(include)
-if(CONFIG_ZMK_TEMPLATE_FEATURE)
-    # target_sources(app PRIVATE ...)
+if(CONFIG_ZMK_KSCAN_DIAGNOSTICS)
+    file(GLOB C_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
+    target_sources(app PRIVATE ${C_FILES})
 
-    if(CONFIG_ZMK_TEMPLATE_FEATURE_STUDIO_RPC)
-        file(GLOB_RECURSE C_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
-        target_sources(app PRIVATE ${C_FILES})
+    if(CONFIG_ZMK_KSCAN_DIAGNOSTICS_MOCK_TIMING_TEST)
+        target_sources(app PRIVATE src/test/kscan_mock_timing_test.c)
+    endif()
+
+    if(CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC)
+        file(GLOB_RECURSE STUDIO_C_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/studio/*.c)
+        target_sources(app PRIVATE ${STUDIO_C_FILES})
+
+        if(CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST)
+            target_sources(app PRIVATE src/test/kscan_diagnostics_rpc_test.c)
+        endif()
 
         list(APPEND CMAKE_MODULE_PATH ${ZEPHYR_BASE}/modules/nanopb)
         include(nanopb)
