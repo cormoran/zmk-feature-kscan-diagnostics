@@ -35,6 +35,20 @@ config ZMK_KSCAN_DIAGNOSTICS_SPLIT
       peripheral only needs this option (no ZMK_STUDIO) to answer queries.
 
 if ZMK_KSCAN_DIAGNOSTICS_SPLIT
+
+config ZMK_KSCAN_DIAGNOSTICS_RELAY_STACK_SIZE
+    int "Stack size (bytes) for the kscan diagnostics relay work queue"
+    default 4096
+    help
+      The relay work queue decodes/encodes protobuf and -- on the central --
+      raises Studio RPC notifications, which synchronously build large
+      zmk_studio_Notification + zmk_studio_Response structs and run a double
+      pb_encode. Doing that on the shared system work queue (which the split
+      relay receive path already runs on) overflows its stack, so the relay
+      hands the heavy work to its own thread. Sized like the Studio RPC thread
+      (CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE=4096). Raise it if you see a
+      stack overflow in the "ksd_relay" thread.
+
 # A single relayed reply carries an encoded Response (largest ~180 B, a
 # GpioPins page -- see KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE).
 # Raise the reassembled relay payload ceiling to fit it; the relay transport
