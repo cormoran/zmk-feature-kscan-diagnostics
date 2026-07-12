@@ -475,12 +475,23 @@ PC ◄── PeripheralEvent notification (one per responding peripheral)
   additionally gated on `ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC`.
 - **Security**: unchanged — the subsystem stays `UNSECURED`; peripheral
   topology/aggregate counters are no more sensitive than the central's.
+- **Threading**: the relay carriers are re-raised by the split relay-receive
+  path on the **system work queue** (~2 KB). Answering a query and (on the
+  central) raising a Studio notification -- `raise_zmk_studio_custom_notification`
+  builds a full `zmk_studio_Notification` + `zmk_studio_Response` and runs a
+  double `pb_encode` synchronously -- needs an RPC-thread-sized stack, so the
+  event listeners only enqueue to a `k_msgq` and the heavy work runs on a
+  dedicated `ksd_relay` work queue (`ZMK_KSCAN_DIAGNOSTICS_RELAY_STACK_SIZE`,
+  default 4096). Doing it inline on sysworkq overflows its stack (observed on
+  hardware).
 - **Testing** (§8): the relay round-trip needs two firmware images, so
   native_sim covers `ksd_query_dispatch` (unchanged), and two build-test
   artifacts (`kscan_diagnostics_board_split_central` /
   `..._split_peripheral`) prove both role gatings + the `BUILD_ASSERT`s
-  compile. The functional round-trip is hardware-validated on the two-XIAO
-  split rig (see docs/validation.md).
+  compile. The functional two-board round-trip is **not yet hardware-validated**:
+  a validation attempt could not boot a split BLE central on the workspace rig
+  (nRF52840 BLE-controller HardFault at boot, independent of this module --
+  the rig's BLE was in a degraded/connection-churn state), so it is deferred
+  until the rig's BLE is healthy or a known-good split pair is available.
 - **Out of scope here**: the web UI that issues `QueryPeripheral` and renders
-  peripheral topology/wiring (follow-up). The firmware and protocol are
-  complete and CLI-validated.
+  peripheral topology/wiring (follow-up).
