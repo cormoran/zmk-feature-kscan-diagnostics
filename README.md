@@ -113,6 +113,34 @@ Optional, but recommended if you can add it:
 | `CONFIG_ZMK_KSCAN_DIAGNOSTICS` | bool | `n` | Master switch. Enables kscan topology collection and per-key statistics. |
 | `CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC` | bool | `y` (once `ZMK_STUDIO` is enabled) | Exposes the diagnostics data over the custom Studio RPC subsystem so the web UI can read it. Only depends on `ZMK_STUDIO`, not on which kscan driver you use. |
 | `CONFIG_ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS` | int | `128` | How many keymap positions get a statistics slot (~28 bytes RAM each). Raise it only if your layout has more than 128 positions; lower it to save RAM on very small MCUs. |
+| `CONFIG_ZMK_KSCAN_DIAGNOSTICS_SPLIT` | bool | `y` (on a split build) | On a split keyboard, lets the central relay diagnostics queries to the peripheral half/halves and deliver their replies to the web UI (see below). Requires `CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256` on **both** halves. |
+
+### Split keyboards
+
+On a split keyboard, build **both** halves with this module. The half plugged
+into your computer (the central) can then read the *other* half's kscan wiring
+and per-key statistics by relaying the query across the split link. Enable it
+in the `.conf` that applies to both halves (e.g. a shared `<board>.conf`):
+
+```conf
+CONFIG_ZMK_KSCAN_DIAGNOSTICS=y
+# Auto-enabled on a split build; needed so the peripheral half answers queries.
+CONFIG_ZMK_KSCAN_DIAGNOSTICS_SPLIT=y
+# Required on BOTH halves: a peripheral reply carries a full topology page, which
+# is larger than ZMK's default relay payload. (The module sets this as a Kconfig
+# default, but that can lose Kconfig parse-order, so set it explicitly.)
+CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256
+```
+
+The central additionally needs `CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y`
+(from the base setup above) to forward peripheral replies to the web UI; the
+peripheral does not need `CONFIG_ZMK_STUDIO`.
+
+> Status: the firmware and RPC for this are complete (a `QueryPeripheral`
+> request and `PeripheralEvent` notification on the diagnostics subsystem). The
+> web UI that surfaces peripheral-half wiring is still in progress — until then
+> the keyboard view continues to label peripheral keys "wiring info
+> unavailable".
 
 (There are also two test-only Kconfig symbols,
 `CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST` and

@@ -10,6 +10,9 @@
 #include <zmk/studio/custom.h>
 #include <cormoran/kscan_diagnostics/kscan_diagnostics.pb.h>
 #include <cormoran/kscan_diagnostics/query.h>
+#if IS_ENABLED(CONFIG_ZMK_KSCAN_DIAGNOSTICS_SPLIT)
+#include <cormoran/kscan_diagnostics/relay.h>
+#endif
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -57,6 +60,17 @@ static bool kscan_diagnostics_rpc_handle_request(const zmk_custom_CallRequest *r
         ksd_query_set_error(resp, "Failed to decode request");
         return true;
     }
+
+#if IS_ENABLED(CONFIG_ZMK_KSCAN_DIAGNOSTICS_SPLIT)
+    // QueryPeripheral is central-only relay plumbing: it wraps an inner
+    // Request destined for the peripheral half, so it is not part of the
+    // shared local dispatch. Intercept it here and relay; the peripheral's
+    // reply is delivered later as a PeripheralEvent notification.
+    if (req.which_request_type == cormoran_kscan_diagnostics_Request_query_peripheral_tag) {
+        ksd_relay_central_query(&req.request_type.query_peripheral, resp);
+        return true;
+    }
+#endif
 
     ksd_query_dispatch(&req, resp);
     return true;

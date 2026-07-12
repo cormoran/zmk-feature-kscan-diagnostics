@@ -9,3 +9,10 @@ cormoran.kscan_diagnostics.GpioPins.pins                max_count:4
 cormoran.kscan_diagnostics.PositionMap.cells            max_count:24
 cormoran.kscan_diagnostics.Error.message                max_size:48
 cormoran.kscan_diagnostics.Stats.entries                max_count:2
+# QueryPeripheral.payload holds an encoded inner Request (largest is
+# GetGpioPins: 3 uint32 fields + framing); PeripheralEvent.payload holds an
+# encoded inner Response (largest is a GpioPins page, ~180 B -- see
+# KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE in query.h). These bound
+# the fixed nanopb buffers on both split halves.
+cormoran.kscan_diagnostics.QueryPeripheral.payload      max_size:32
+cormoran.kscan_diagnostics.PeripheralEvent.payload      max_size:192

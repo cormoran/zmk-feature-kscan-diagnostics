@@ -25,10 +25,15 @@ updated when a phase deviates from the plan.
   (subsystem identifier `zmk__input_stream`) when the firmware includes it.
   This module only adds what input-stream does not have: topology and
   accurate-time statistics (see §3.1 for why both are needed).
+- **Split peripheral diagnostics** (§11): the same topology + statistics from
+  the peripheral half/halves, obtained by relaying the query to the peripheral
+  over the ZMK split event-relay and returning its reply to the PC as an RPC
+  notification. Firmware + protocol only in this iteration; the web UI that
+  consumes it is a follow-up.
 - Out of scope for v1 (backlog, §9): active GPIO self-test (driving lines while
   the kscan driver runs is unsafe), raw pre-debounce scan visibility (needs a
-  kscan wrapper driver), wiring info for split-peripheral halves, upstream
-  input-stream improvements (timestamp + sequence number).
+  kscan wrapper driver), upstream input-stream improvements (timestamp +
+  sequence number).
 
 ### Known limitations (documented in README, surfaced in web UI)
 
@@ -41,11 +46,15 @@ updated when a phase deviates from the plan.
    visualization); all timing analysis uses this module's firmware-side
    counters, which are ground truth.
 3. **Split keyboards**: position events from the peripheral half reach the
-   central (with `source != LOCAL`) and are counted in stats, but GPIO/wiring
-   topology is only available for the central half (the peripheral's DT is in
-   the other image). Sub-5 ms chatter buckets are unreliable for peripheral
-   positions (split transport jitter). The web UI labels the peripheral half
-   "wiring info unavailable, timing approximate".
+   central (with `source != LOCAL`) and are counted in the central's stats,
+   but the peripheral's GPIO/wiring topology and its *own* per-key counters
+   live in the other firmware image. §11 adds a relay path that queries the
+   peripheral image directly for that data; until the web UI consumes it, the
+   central's view still labels the peripheral half "wiring info unavailable".
+   Sub-5 ms chatter buckets remain unreliable for peripheral positions counted
+   on the *central* side (split transport jitter); the peripheral's own
+   counters (§11) do not have that jitter because they are collected locally on
+   the peripheral before transport.
 4. **Ghost keys on unmapped matrix cells are invisible** — `app/src/kscan.c`
    drops (row,col) pairs with no transform entry. Phantom presses on *mapped*
    positions (the usual 4th-corner ghost) are visible and diagnosed.
@@ -377,10 +386,20 @@ pre-commit run --all-files` + run the npm checks directly.
 - **F — docs + PR**: README user guide (how to add the module + west.yml
   example, how to run a diagnosis session), then PR to origin.
 
+- **G — peripheral diagnostics over split relay** (§11) — **firmware/protocol
+  done**: G1 extracted the shared `ksd_query_dispatch` (no behavior change);
+  G2 added `QueryPeripheral` (Request) + `PeripheralEvent` (notification) to
+  the proto; G3 added `ZMK_KSCAN_DIAGNOSTICS_SPLIT`, the two relay carriers
+  (`relay_events.{h,c}`), and the relay TU (`src/split/kscan_diagnostics_relay.c`)
+  wiring central query-out/notify and peripheral answer; G5 added the two
+  split build-test artifacts. The web UI that consumes `PeripheralEvent` is a
+  **follow-up** (not in this iteration).
+
 Backlog (separate issues, not v1): input-stream upstream PR adding
 `timestamp_ms` + `seq` to `KeyEventNotification`; kscan wrapper driver for
-pre-debounce raw scan streaming; active GPIO line self-test; peripheral-half
-topology via split RPC.
+pre-debounce raw scan streaming; active GPIO line self-test; **web UI for
+peripheral diagnostics** (issue the §11 `QueryPeripheral` calls and render the
+peripheral halves' wiring/stats).
 
 ## 10. Design decisions record
 
@@ -395,4 +414,64 @@ topology via split RPC.
 - **Compile-time DT tables** — no runtime API exists for kscan wiring; private
   driver structs must not be poked. Cost: per-compat macro code (§4).
 - **Chunked polling RPCs, no notifications** — topology is static, stats are
-  poll-friendly, and input-stream already owns the live event channel.
+  poll-friendly, and input-stream already owns the live event channel. (§11's
+  peripheral path is the one exception: its reply is inherently asynchronous
+  across the split link, so it *is* delivered as a notification.)
+
+## 11. Peripheral diagnostics over split event-relay
+
+A split peripheral's kscan wiring is compile-time devicetree in a **separate
+firmware image**, so the central cannot read it directly. Instead of a new
+protocol, the peripheral runs the **same** topology/stats query dispatch
+(`ksd_query_dispatch`, `src/kscan_diagnostics_query.c`) against its own tables,
+and the central shuttles the request/reply over ZMK's split event-relay
+(`CONFIG_ZMK_SPLIT_RELAY_EVENT`, patched-fork feature). Flow:
+
+```
+PC ──QueryPeripheral{req_id, payload=<encoded inner Request>}──► central RPC
+     central: raise ksd_relay_query(SELF) ──relay(KDq)──► peripheral(s)
+       peripheral: ksd_relay_query re-raised locally (source stamped)
+                 → decode inner Request → ksd_query_dispatch (own tables)
+                 → encode inner Response → raise ksd_relay_reply(SELF)
+     peripheral ──relay(KDr)──► central: ksd_relay_reply re-raised (source=idx+1)
+       central: raise_zmk_studio_custom_notification(PeripheralEvent{source,
+                req_id, payload=<encoded inner Response>})
+PC ◄── PeripheralEvent notification (one per responding peripheral)
+```
+
+- **Reused dispatch, not a mirrored protocol.** The relay carries opaque
+  encoded `Request`/`Response` bytes — the exact messages the local RPC uses —
+  so every existing query (Info/Layout/Device/GpioPins/PositionMap/Stats/
+  ResetStats) works against the peripheral with zero duplicate logic. G1
+  extracted the dispatch out of the Studio handler so it compiles into a
+  peripheral image that has **no `ZMK_STUDIO`** (`select NANOPB` keeps the
+  proto buildable there).
+- **Async → notification.** The RPC returns `Ok` immediately (`Error` if the
+  build is not a split central); replies arrive later as `PeripheralEvent`
+  notifications. Since a peripheral cannot know its own source index, the relay
+  **broadcasts to all** peripherals and each reply is stamped with its `source`
+  (1-based; central is 0) by the central-side relay HANDLE. The client
+  correlates replies by `(source, req_id)` and tolerates duplicates/timeouts.
+- **Two relay carriers** (`include/cormoran/kscan_diagnostics/relay_events.h`):
+  `ksd_relay_query` (id `KDq`, central→peripheral) and `ksd_relay_reply`
+  (id `KDr`, peripheral→central), each holding `{source, req_id, len, data[]}`.
+  The whole struct is copied into the relay payload, so the reply's `data`
+  (sized to the largest inner Response, ~180 B) forces
+  `CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256` (the relay transport chunks it
+  across the link; a `BUILD_ASSERT` + README note cover the config). The four
+  relay macros in `src/split/kscan_diagnostics_relay.c` are self-role-gating,
+  so one TU compiles correctly on either role.
+- **Kconfig**: `ZMK_KSCAN_DIAGNOSTICS_SPLIT` (default y under `ZMK_SPLIT`)
+  `select`s `ZMK_SPLIT_RELAY_EVENT` and `NANOPB`. Central notification path is
+  additionally gated on `ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC`.
+- **Security**: unchanged — the subsystem stays `UNSECURED`; peripheral
+  topology/aggregate counters are no more sensitive than the central's.
+- **Testing** (§8): the relay round-trip needs two firmware images, so
+  native_sim covers `ksd_query_dispatch` (unchanged), and two build-test
+  artifacts (`kscan_diagnostics_board_split_central` /
+  `..._split_peripheral`) prove both role gatings + the `BUILD_ASSERT`s
+  compile. The functional round-trip is hardware-validated on the two-XIAO
+  split rig (see docs/validation.md).
+- **Out of scope here**: the web UI that issues `QueryPeripheral` and renders
+  peripheral topology/wiring (follow-up). The firmware and protocol are
+  complete and CLI-validated.

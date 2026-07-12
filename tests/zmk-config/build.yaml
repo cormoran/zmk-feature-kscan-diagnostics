@@ -46,6 +46,22 @@ include:
       - studio-rpc-usb-uart
       - diag-charlieplex-demux
 
+  # Split event-relay compile coverage (DESIGN.md peripheral relay section):
+  # the relay TU (src/split/kscan_diagnostics_relay.c) is self-role-gating, so
+  # these two artifacts prove both role paths + the BUILD_ASSERTs compile.
+  # tester_xiao is unibody, so split role is forced via cmake-args; this is a
+  # compile test, not a functional split (that is the two-XIAO hardware rig).
+  - artifact: kscan_diagnostics_board_split_central
+    board: xiao_ble//zmk
+    shield: tester_xiao
+    cmake-args: -DCONFIG_ZMK_STUDIO=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y -DCONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256 -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=y -DCONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256
+    snippet: studio-rpc-usb-uart
+
+  - artifact: kscan_diagnostics_board_split_peripheral
+    board: xiao_ble//zmk
+    shield: tester_xiao
+    cmake-args: -DCONFIG_ZMK_KSCAN_DIAGNOSTICS=y -DCONFIG_ZMK_SPLIT=y -DCONFIG_ZMK_SPLIT_ROLE_CENTRAL=n -DCONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256
+
   # Phase E hardware validation (DESIGN.md SS8/SS9): zmk,kscan-mock swapped in
   # for tester_xiao's baseline direct kscan so the RPC chain can be exercised
   # on real hardware with no physical switches attached. Also carries the
