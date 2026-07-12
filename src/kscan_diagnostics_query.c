@@ -18,53 +18,31 @@
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 /*
- * Response size budget (DESIGN.md SS6): the two chunked responses are the
- * largest members of the Response oneof.
+ * Response paging.
  *
- * GpioPins (KSCAN_DIAGNOSTICS_RPC_GPIO_PAGE_SIZE=4 pins, must match
- * kscan_diagnostics.options' GpioPins.pins max_count):
- *   total, offset (2 uint32 fields)                        ~=  2 *  6 =  12
- *   per GpioPin: index, pin, active_low, dt_flags (4 fields) ~= 4 *  6 = 24
- *               port (tag+len+12 chars)                     ~=        15
- *               submessage tag+len                          ~=         2
- *   per pin total                                           ~=        41
- *   4 pins                                                  ~=       164
- *   GpioPins submessage tag+len                             ~=         4
- *   ------------------------------------------------------------------
- *   total                                                   ~=       180
+ * Every Response is a single fixed nanopb struct (the shared static response
+ * buffer). Its repeated fields are capped by kscan_diagnostics.options'
+ * max_count -- GpioPins.pins=4, Stats.entries=2, PositionMap.cells=24 -- so
+ * the handlers page unbounded data with an `offset` and fill at most one page
+ * per call. Those caps, NOT any transport buffer, are what bound the struct's
+ * RAM; the page sizes below must stay <= the matching .options max_count.
  *
- * PositionMap (KSCAN_DIAGNOSTICS_RPC_POSITION_PAGE_SIZE=24 cells, must match
- * kscan_diagnostics.options' PositionMap.cells max_count):
- *   total, offset (2 uint32 fields)                         ~=        12
- *   24 cells, varint packed repeated uint32 (~2 B each worst case) ~= 48
- *   PositionMap submessage tag+len                          ~=         4
- *   ------------------------------------------------------------------
- *   total                                                   ~=        64
+ * Note: the Studio RPC does NOT bound the *encoded* Response by
+ * CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE. It encodes with a SIZE_MAX pb_ostream
+ * that streams into a ring buffer and blocks with backpressure when full
+ * (rpc_tx_buffer_write / pb_ostream_for_tx_buf in app/src/studio/rpc.c), so a
+ * Response of any size is sent -- the TX buffer size only trades RAM for
+ * throughput (a bigger ring means fewer 1 ms backpressure stalls; see the
+ * "Studio RPC TX buffer bottleneck" note). Paging here is therefore about
+ * bounding the in-RAM Response struct and keeping each round-trip small, not
+ * about fitting a fixed wire buffer.
  *
- * Stats (KSCAN_DIAGNOSTICS_RPC_STATS_PAGE_SIZE entries, must match
- * kscan_diagnostics.options' Stats.entries max_count): DESIGN.md SS6
- * originally estimated 3 entries would fit in TX=256, but checking the
- * arithmetic below (each PositionStats has 10 uint32 fields, nearly 3x
- * GpioPin's field count) shows 3 entries overflows the budget; shrunk to 2,
- * the same kind of adjustment Phase B made for GpioPins (6 -> 4 pins/page).
- *   total, offset (2 uint32 fields)                         ~=        12
- *   per PositionStats: position, presses, releases,
- *     min_press_duration_ms, min_repress_gap_ms, repress_lt5/10/20/50,
- *     last_source (10 uint32 fields)                        ~= 10 *  6 = 60
- *               submessage tag+len                           ~=         2
- *   per entry total                                          ~=        62
- *   2 entries                                                ~=       124
- *   Stats submessage tag+len                                 ~=         4
- *   ------------------------------------------------------------------
- *   total                                                    ~=       140
- *
- * Stats is the largest of the chunked responses (GpioPins ~180 total incl.
- * headroom below, PositionMap ~64), but GpioPins' own arithmetic already
- * requires 180 + 64 = 244 <= 256, so the shared budget below is sized
- * against GpioPins' 180, which still comfortably covers Stats' 140. The
- * transport-level BUILD_ASSERTs (TX buffer for Studio RPC, relay payload for
- * the split path) live with each transport; this constant is the estimate
- * both reference.
+ * The one path where a whole encoded Response IS size-bounded is the split
+ * relay: its reassembly buffer is fixed at CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN.
+ * That bound lives with KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE in
+ * query.h and the BUILD_ASSERT in relay_events.h. Worst-case encoded size is
+ * the GpioPins page (~180 B): 4 pins * (~24 B fixed fields + ~15 B port
+ * string + framing) + total/offset + submessage framing.
  */
 #define KSCAN_DIAGNOSTICS_RPC_GPIO_PAGE_SIZE 4
 #define KSCAN_DIAGNOSTICS_RPC_POSITION_PAGE_SIZE 24

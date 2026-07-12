@@ -35,9 +35,9 @@ BUILD_ASSERT(KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE <= KSD_RELAY_REPL
              "kscan diagnostics Response no longer fits the relay reply buffer");
 
 struct ksd_relay_query {
-    uint8_t source;  /* ZMK_RELAY_EVENT_SOURCE_SELF on send; sender index+1 on receive */
-    uint8_t req_id;  /* echoed back in the reply for client correlation */
-    uint8_t len;     /* bytes of `data` in use */
+    uint8_t source; /* ZMK_RELAY_EVENT_SOURCE_SELF on send; sender index+1 on receive */
+    uint8_t req_id; /* echoed back in the reply for client correlation */
+    uint8_t len;    /* bytes of `data` in use */
     uint8_t data[KSD_RELAY_QUERY_DATA_MAX]; /* encoded inner Request */
 };
 

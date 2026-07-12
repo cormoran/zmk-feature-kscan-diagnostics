@@ -18,18 +18,14 @@
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 /*
- * Studio RPC transport budget: the encoded Response must fit the Studio RPC
- * TX buffer with the ~64 B framing margin. The worst-case Response size
- * (GpioPins page) is estimated in src/kscan_diagnostics_query.c and shared as
- * KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE.
- * CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256 is configured in
- * tests/studio/native_sim.conf and tests/zmk-config/build.yaml.
+ * No TX-buffer BUILD_ASSERT here: the Studio RPC streams the encoded Response
+ * through a ring buffer with backpressure (SIZE_MAX pb_ostream in
+ * app/src/studio/rpc.c), so a Response is not bounded by
+ * CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE -- that knob only affects throughput. A
+ * larger TX buffer (e.g. 256) is still recommended for responsiveness (see
+ * the "Studio RPC TX buffer bottleneck" note) but is not a correctness
+ * requirement. See the paging comment in src/kscan_diagnostics_query.c.
  */
-BUILD_ASSERT(KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE + 64 <=
-                 CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE,
-             "CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE is too small for a full kscan diagnostics "
-             "GpioPins/Stats response -- see the arithmetic comment in "
-             "src/kscan_diagnostics_query.c");
 
 static struct zmk_rpc_custom_subsystem_meta kscan_diagnostics_subsystem_meta = {
     ZMK_RPC_CUSTOM_SUBSYSTEM_UI_URLS("https://cormoran.github.io/zmk-feature-kscan-diagnostics/"),

@@ -11,10 +11,13 @@
 /*
  * Estimated worst-case encoded size of a Response produced by
  * ksd_query_dispatch (the GpioPins page; see the arithmetic in
- * src/kscan_diagnostics_query.c). Each transport that carries a Response
- * BUILD_ASSERTs its own buffer against this: the Studio RPC TX buffer in
- * src/studio/kscan_diagnostics_handler.c and the split relay payload in
- * src/split/kscan_diagnostics_relay_events.h.
+ * src/kscan_diagnostics_query.c).
+ *
+ * Only the split relay needs this: its reassembly buffer is a fixed
+ * CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN, so relay_events.h BUILD_ASSERTs the
+ * reply buffer against it. The Studio RPC does NOT bound a Response by its TX
+ * buffer -- it streams the encoding with backpressure -- so there is no
+ * corresponding TX-buffer assert.
  */
 #define KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE 180
 

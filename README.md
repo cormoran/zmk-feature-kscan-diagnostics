@@ -92,6 +92,8 @@ Optional, but recommended if you can add it:
    CONFIG_ZMK_STUDIO=y
    CONFIG_ZMK_KSCAN_DIAGNOSTICS=y
    CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y
+   # Optional (throughput, not required): the Studio RPC streams responses, so
+   # this only makes larger responses transfer with fewer stalls.
    CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE=256
 
    # Optional: enable zmk-feature-input-stream for live key-press

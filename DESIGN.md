@@ -99,7 +99,7 @@ firmware                                      web (React + TS, vite)
 | `ZMK_KSCAN_DIAGNOSTICS` | bool | n | master switch; stats collection (depends on `ZMK`) |
 | `ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC` | bool | y if `ZMK_KSCAN_DIAGNOSTICS && ZMK_STUDIO` | RPC subsystem. **Depends only on `ZMK_STUDIO`**, not on any kscan compat, so native_sim builds with zero devices (stub returns 0 devices — template rule) |
 | `ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS` | int | 128 | stats table size (≈28 B/position RAM, see §5) |
-| `ZMK_STUDIO_RPC_TX_BUF_SIZE` | — | module sets **256** when RPC enabled | largest chunk ≈160 B + envelope; add `BUILD_ASSERT` on encoded max sizes |
+| `ZMK_STUDIO_RPC_TX_BUF_SIZE` | — | **recommended 256** (throughput only) | The Studio RPC streams the encoded Response through this ring buffer with backpressure (`SIZE_MAX` pb_ostream, `rpc_tx_buffer_write` in `app/src/studio/rpc.c`), so a Response is **not** size-bounded by it — a bigger buffer only means fewer 1 ms backpressure stalls (see the "Studio RPC TX buffer bottleneck" note). Not a correctness requirement; no TX `BUILD_ASSERT`. |
 | RX buf | — | keep template default (128) | our requests are ≤16 B |
 
 No runtime custom settings in v1: the chatter threshold is applied **web-side**
@@ -173,8 +173,7 @@ temporarily-added diagnostics module; shrink via Kconfig for tiny MCUs.
 Fixed buckets (5/10/20/50 ms) let the web pick any threshold without a
 firmware setting. `reset` RPC zeroes everything. Guard concurrent access with
 a spinlock or by running entirely on the event thread (listener) + reading
-snapshot in RPC handler with lock held (copy per-chunk, 2 entries — cheap;
-see §6 for why the page shrank from the originally-planned 3 to 2).
+snapshot in RPC handler with lock held (copy per-chunk, 2 entries — cheap).
 
 ## 6. RPC protocol (`proto/cormoran/kscan_diagnostics/kscan_diagnostics.proto`)
 
@@ -183,14 +182,20 @@ see §6 for why the page shrank from the originally-planned 3 to 2).
 `has_<field>=true` on every sub-message, no 64-bit types, every string/bytes
 field gets a `.options` max_size.**
 
-| Request | Response | Notes / encoded-size budget (TX=256) |
+Page sizes (`.options` max_count) bound the in-RAM Response struct and — once
+§11's relay is in play — keep each encoded Response within the relay's
+reassembly buffer (`CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN`, 256). They are
+**not** bound by the Studio RPC TX buffer, which streams the encoding (§3).
+
+| Request | Response | Notes / encoded size |
 |---|---|---|
 | `GetInfo{}` | `Info{proto_version=1, layout_count, selected_layout, device_count, stats_enabled, max_positions, uptime_ms}` | ~30 B |
 | `GetLayout{layout_index}` | `Layout{layout_index, display_name(≤24), rows, columns, key_count, device_indices[≤4] (resolved leaf devices + their offsets: repeated LayoutDevice{leaf_index,row_offset,col_offset})}` | ~60 B |
 | `GetDevice{device_index}` | `Device{device_index, node_name(≤24), type, rows, columns, inputs, debounce_press_ms, debounce_release_ms, debounce_scan_period_ms, poll_period_ms, diode_row2col, toggle_mode}` | ~70 B |
-| `GetGpioPins{device_index, kind, offset}` | `GpioPins{total, offset, pins[≤4]{index, port(≤12), pin, active_low, dt_flags}}` | 4×~41 B ≈ 180 B (Phase B measured this against TX=256 and shrank the page from the originally-planned 6 to 4 to leave the required 64 B framing margin — see src/studio/kscan_diagnostics_handler.c) |
+| `GetGpioPins{device_index, kind, offset}` | `GpioPins{total, offset, pins[≤4]{index, port(≤12), pin, active_low, dt_flags}}` | 4×~41 B ≈ 180 B — the largest response; sets `KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE` and the relay reply-buffer bound (§11). 4 pins/page comfortably fits the 256 B relay payload. |
 | `GetPositionMap{layout_index, offset}` | `PositionMap{total, offset, cells[≤24]}` — row-major over rows×cols, value = position+1, 0 = unmapped | ≤24×5 B ≈ 130 B |
-| `GetStats{offset}` | `Stats{total, offset, entries[≤2] PositionStats{position, presses, releases, min_press_duration_ms, min_repress_gap_ms, repress_lt5/lt10/lt20/lt50, last_source}}` | 2×~62 B ≈ 140 B (largest response → sizes the TX assert; **Phase C measured this against TX=256 and shrank the page from the originally-planned 3 to 2** — each PositionStats has 10 uint32 fields, ~3x GpioPin's field count, so 3 entries (~202 B) would have overflowed the 64 B framing margin — see src/studio/kscan_diagnostics_handler.c) |
+| `GetStats{offset}` | `Stats{total, offset, entries[≤2] PositionStats{position, presses, releases, min_press_duration_ms, min_repress_gap_ms, repress_lt5/lt10/lt20/lt50, last_source}}` | 2×~62 B ≈ 140 B (each PositionStats has 10 uint32 fields) |
+| `QueryPeripheral{req_id, payload}` (§11) | `Ok{}` / `Error` | relay ack; peripheral reply arrives as a `PeripheralEvent` notification |
 | `ResetStats{}` | `Ok{}` | |
 | (any decode/range error) | `Error{message ≤48}` | |
 
@@ -200,9 +205,13 @@ field gets a `.options` max_size.**
 Handler: `src/studio/kscan_diagnostics_handler.c`, standard template shape
 (see input-stream's handler for the decode/dispatch skeleton). Responses use
 the shared static response buffer; chunk state must live in the static
-response (encoding may run twice — template rule). Add
-`BUILD_ASSERT(<max encoded Response> + 64 <= CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE)`
-using the nanopb generated `_size` constants.
+response (encoding may run twice — template rule). **No TX-buffer
+`BUILD_ASSERT`**: the Studio RPC streams the encoded Response through its TX
+ring buffer with backpressure (`SIZE_MAX` pb_ostream in
+`app/src/studio/rpc.c`), so a Response is not bounded by
+`CONFIG_ZMK_STUDIO_RPC_TX_BUF_SIZE` (§3). The only place a whole encoded
+Response is size-bounded is the split relay reassembly buffer, asserted in
+`src/split/kscan_diagnostics_relay_events.h` (§11).
 
 ## 7. Web UI (`web/`)
 
