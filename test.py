@@ -137,6 +137,36 @@ class WestCommandsTests(unittest.TestCase):
                         "DT_COMPAT_HAS_OKAY_zmk_kscan_gpio_demux",
                     ],
                 ),
+                # Split event-relay compile coverage: the central role builds
+                # the QueryPeripheral relay + PeripheralEvent notification path,
+                # the peripheral role builds the query-answering path. Both pull
+                # NANOPB in without/with ZMK_STUDIO and select ZMK_SPLIT_RELAY_EVENT.
+                "kscan_diagnostics_board_split_central": ConfigAndDeviceTree(
+                    config=[
+                        "CONFIG_ZMK_STUDIO=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS_SPLIT=y",
+                        "CONFIG_ZMK_SPLIT_ROLE_CENTRAL=y",
+                        "CONFIG_ZMK_SPLIT_RELAY_EVENT=y",
+                        "CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256",
+                        "CONFIG_NANOPB=y",
+                    ],
+                    device=[],
+                ),
+                "kscan_diagnostics_board_split_peripheral": ConfigAndDeviceTree(
+                    config=[
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS=y",
+                        "CONFIG_ZMK_KSCAN_DIAGNOSTICS_SPLIT=y",
+                        "# CONFIG_ZMK_STUDIO is not set",
+                        "# CONFIG_ZMK_SPLIT_ROLE_CENTRAL is not set",
+                        "CONFIG_ZMK_SPLIT_RELAY_EVENT=y",
+                        "CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256",
+                        "CONFIG_NANOPB=y",
+                        NotFound("CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC"),
+                    ],
+                    device=[],
+                ),
             }
         )
 

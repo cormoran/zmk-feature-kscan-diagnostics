@@ -7,10 +7,57 @@ config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
     bool "Enable Kscan Diagnostics custom Studio RPC"
     default y
     depends on ZMK_STUDIO
+    # nanopb is normally pulled in by ZMK_STUDIO, but select it explicitly so
+    # the shared proto/query dispatch builds regardless of how it is reached.
+    select NANOPB
 
 config ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS
     int "Maximum number of keymap positions tracked by kscan diagnostics"
     default 128
+
+config ZMK_KSCAN_DIAGNOSTICS_SPLIT
+    bool "Relay kscan diagnostics queries to split peripheral half/halves"
+    depends on ZMK_SPLIT
+    default y
+    select ZMK_SPLIT_RELAY_EVENT
+    # The peripheral image answers relayed queries with the shared nanopb
+    # query dispatch but has no ZMK_STUDIO to pull nanopb in, so select it.
+    select NANOPB
+    help
+      On a split keyboard, relay topology/stats queries from the central to
+      the peripheral half/halves over the ZMK split event-relay and deliver
+      each peripheral's reply back to the connected Studio client as an RPC
+      notification (PeripheralEvent). This lets the web UI read the peripheral
+      half's own kscan wiring and per-key statistics -- its devicetree lives
+      in a separate firmware image, so the central cannot read it directly.
+      Both halves must be built with this module. The central notification
+      path additionally requires ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC; the
+      peripheral only needs this option (no ZMK_STUDIO) to answer queries.
+
+if ZMK_KSCAN_DIAGNOSTICS_SPLIT
+
+config ZMK_KSCAN_DIAGNOSTICS_RELAY_STACK_SIZE
+    int "Stack size (bytes) for the kscan diagnostics relay work queue"
+    default 4096
+    help
+      The relay work queue decodes/encodes protobuf and -- on the central --
+      raises Studio RPC notifications, which synchronously build large
+      zmk_studio_Notification + zmk_studio_Response structs and run a double
+      pb_encode. Doing that on the shared system work queue (which the split
+      relay receive path already runs on) overflows its stack, so the relay
+      hands the heavy work to its own thread. Sized like the Studio RPC thread
+      (CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE=4096). Raise it if you see a
+      stack overflow in the "ksd_relay" thread.
+
+# A single relayed reply carries an encoded Response (largest ~180 B, a
+# GpioPins page -- see KSCAN_DIAGNOSTICS_RPC_ESTIMATED_MAX_RESPONSE_SIZE).
+# Raise the reassembled relay payload ceiling to fit it; the relay transport
+# chunks it across the split link automatically. If this default does not take
+# effect for your build, set CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=256
+# explicitly -- src/split/kscan_diagnostics_relay_events.h BUILD_ASSERTs it.
+config ZMK_SPLIT_RELAY_EVENT_DATA_LEN
+    default 256
+endif
 
 config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_TEST
     bool "Enable kscan diagnostics Studio RPC self-test (native_sim only)"
