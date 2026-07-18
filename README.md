@@ -54,9 +54,10 @@ Optional, but recommended if you can add it:
   without the live visual feedback. Note that input-stream's RPC subsystem is
   **SECURED**, so live view requires unlocking ZMK Studio on the keyboard
   first (or building with `CONFIG_ZMK_STUDIO_LOCKING=n` for a
-  diagnostics-only build) — this module's own RPC subsystem is deliberately
-  **unsecured** so topology/stats are readable even on a keyboard too broken
-  to type the unlock combo.
+  diagnostics-only build). This module's own RPC subsystem is also **SECURED**
+  by default. If you need to read topology/stats on a keyboard too broken to
+  type the unlock combo, set `CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_UNSECURED=y`
+  to expose it while locked.
 
 ## Module User Guide
 
