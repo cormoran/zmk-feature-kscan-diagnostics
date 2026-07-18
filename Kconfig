@@ -11,6 +11,17 @@ config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
     # the shared proto/query dispatch builds regardless of how it is reached.
     select NANOPB
 
+config ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_UNSECURED
+    bool "Allow the kscan diagnostics Studio RPC while the device is locked"
+    depends on ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC
+    help
+      By default the kscan diagnostics custom Studio RPC is secured: it
+      requires an unlocked device (&studio_unlock). Enable this to expose it
+      while the device is locked, which is useful in un-reliable environments
+      where a broken keyboard may not be able to type the unlock combo.
+      Topology and aggregate counters are not highly sensitive, but exposing
+      them unlocked is opt-in.
+
 config ZMK_KSCAN_DIAGNOSTICS_MAX_POSITIONS
     int "Maximum number of keymap positions tracked by kscan diagnostics"
     default 128

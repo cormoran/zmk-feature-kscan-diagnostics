@@ -75,9 +75,11 @@ firmware                                      web (React + TS, vite)
 ```
 
 - Subsystem identifier: `cormoran__kscan_diagnostics` (27 chars < 32 limit).
-- Security: `ZMK_STUDIO_RPC_HANDLER_UNSECURED`. Rationale: a broken keyboard
-  may be unable to type the `&studio_unlock` combo; topology and aggregate
-  counters are not sensitive. Note: input-stream is SECURED, so the *live*
+- Security: `ZMK_STUDIO_RPC_HANDLER_SECURED` by default; opt out with
+  `CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_UNSECURED=y`. Rationale for the
+  override: a broken keyboard may be unable to type the `&studio_unlock`
+  combo, and topology and aggregate counters are not highly sensitive. Note:
+  input-stream is SECURED, so the *live*
   view needs an unlock — the wizard must degrade to the stats-only path and
   tell the user (or suggest `CONFIG_ZMK_STUDIO_LOCKING=n` in a diagnostics
   build).
@@ -412,8 +414,10 @@ peripheral halves' wiring/stats).
 
 ## 10. Design decisions record
 
-- **UNSECURED subsystem** — a broken keyboard can't necessarily unlock Studio
-  (§2). Aggregate counters only; no keylogging surface beyond what input-stream
+- **SECURED subsystem by default, opt-in UNSECURED override**
+  (`CONFIG_ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC_UNSECURED`) — a broken keyboard
+  can't necessarily unlock Studio (§2), so the override exists for that case.
+  Aggregate counters only; no keylogging surface beyond what input-stream
   (SECURED) already gates.
 - **No custom settings dependency** — fixed histogram buckets moved the only
   tunable (chatter threshold) to the web (§5). Cuts scope and RAM.
@@ -473,8 +477,9 @@ PC ◄── PeripheralEvent notification (one per responding peripheral)
 - **Kconfig**: `ZMK_KSCAN_DIAGNOSTICS_SPLIT` (default y under `ZMK_SPLIT`)
   `select`s `ZMK_SPLIT_RELAY_EVENT` and `NANOPB`. Central notification path is
   additionally gated on `ZMK_KSCAN_DIAGNOSTICS_STUDIO_RPC`.
-- **Security**: unchanged — the subsystem stays `UNSECURED`; peripheral
-  topology/aggregate counters are no more sensitive than the central's.
+- **Security**: unchanged — the subsystem follows the central's setting
+  (`SECURED` by default, opt-in `UNSECURED`); peripheral topology/aggregate
+  counters are no more sensitive than the central's.
 - **Threading**: the relay carriers are re-raised by the split relay-receive
   path on the **system work queue** (~2 KB). Answering a query and (on the
   central) raising a Studio notification -- `raise_zmk_studio_custom_notification`

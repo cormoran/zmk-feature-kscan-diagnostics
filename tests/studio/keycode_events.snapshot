@@ -1,4 +1,4 @@
-cormoran__kscan_diagnostics, Security: Unsecured
+cormoran__kscan_diagnostics, Security: Secured
 cormoran_custom_settings, Security: Unsecured
 PASS: kscan_diagnostics_rpc_get_info
 PASS: kscan_diagnostics_rpc_get_layout
